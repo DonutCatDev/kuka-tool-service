@@ -1,0 +1,44 @@
+# Python environments and caches
+/.venv/
+/.venv-*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+/htmlcov/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.token
+*.pem
+*.key
+
+# Runtime state and generated artifacts
+/data/
+/jobs/
+/uploads/
+/artifacts/
+/reports/
+*.sqlite
+*.sqlite3
+*.db
+
+# Build and packaging output
+/build/
+/dist/
+*.egg-info/
+
+# Editors and operating systems
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+
+# Local validation output; reviewed evidence may be committed deliberately.
+/validation/results/
+/validation/tmp/

@@ -1,0 +1,9 @@
+# Preserve exact fixture bytes, including source newline style, for golden tests.
+*.src -text
+
+# Keep repository-owned source and documentation normalized.
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
