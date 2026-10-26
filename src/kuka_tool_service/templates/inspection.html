@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Inspection · KUKA Tool Service{% endblock %}
+{% block content %}
+<h1>Inspection: {{ report.filename }}</h1>
+<p class="boundary">This is a syntactic analysis and idealized estimate, not a physical-safety approval or authoritative cycle time.</p>
+{% if report.warnings %}
+<section class="panel warning"><h2>Warnings</h2><ul>{% for warning in report.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>
+{% endif %}
+<div class="metrics">
+  <div><span>SHA-256</span><code>{{ report.sha256 }}</code></div>
+  <div><span>Encoding / newline</span><strong>{{ report.encoding }} / {{ report.newline }}</strong></div>
+  <div><span>DEF</span><strong>{{ report.def_name or 'not found' }}</strong></div>
+  <div><span>Lines / bytes</span><strong>{{ "{:,}".format(report.line_count) }} / {{ "{:,}".format(report.byte_count) }}</strong></div>
+  <div><span>PTP / LIN</span><strong>{{ report.ptp_count }} / {{ report.lin_count }}</strong></div>
+  <div><span>Extrusion / Z layers</span><strong>{{ report.extrusion_layer_count }} / {{ report.z_layer_count }}</strong></div>
+  <div><span>Return travel LINs / wipes</span><strong>{{ report.return_travel_count }} / {{ report.wipe_count }}</strong></div>
+  <div><span>Path distance</span><strong>{{ "%.1f"|format(report.path_distance_mm) }} mm</strong></div>
+  <div><span>Idealized runtime</span><strong>{{ "%.1f"|format(report.estimated_runtime_seconds) }} s</strong></div>
+</div>
+{% if report.bounds %}
+<section class="panel"><h2>Bounds</h2><table><tr><th>Axis</th><th>Min</th><th>Max</th></tr>{% for axis, values in report.bounds.items() %}<tr><td>{{ axis|upper }}</td><td>{{ values.min }}</td><td>{{ values.max }}</td></tr>{% endfor %}</table></section>
+{% endif %}
+<section class="panel"><h2>Velocity commands</h2>
+{% if report.velocity_distribution %}
+<table><tr><th>Phase</th><th>m/s × occurrences</th></tr>{% for phase, values in report.velocity_distribution.items() %}<tr><td>{{ phase }}</td><td>{% for speed, count in values.items() %}<code>{{ speed }}</code> × {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>{% endfor %}</table>
+{% else %}<p>No supported velocity commands found.</p>{% endif %}
+</section>
+{% endblock %}

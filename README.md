@@ -1,16 +1,16 @@
 # KUKA Tool Service
 
-KUKA Tool Service is a planned Fleetlord-hosted web application for inspecting
-and transforming LFAM KUKA `.src` motion programs. It will extract the reusable
-processing behavior from the earlier `large_mesh_project` desktop suite and
-present it through authenticated, auditable browser workflows.
+KUKA Tool Service is a Fleetlord-targeted web application for inspecting and
+transforming LFAM KUKA `.src` motion programs. It recreates the reusable
+processing behavior from the earlier `large_mesh_project` desktop suite as
+authenticated, auditable browser workflows.
 
 The service is intentionally an offline artifact generator. It will not connect
 to KUKA controllers, deploy programs, start production, or modify robot state.
 
-## Initial scope
+## Delivery scope
 
-The first release is planned to provide:
+The first browser slice provides:
 
 1. SRC inspection and idealized path-time estimation.
 2. Metadata annotation and controlled output naming.
@@ -25,11 +25,39 @@ for the delivery plan and
 [`progression/reference-project-assessment.md`](progression/reference-project-assessment.md)
 for the source assessment.
 
-## Repository status
+## Current implementation
 
-This initial commit contains planning and repository policy only. Runtime code,
-container definitions, deployment automation, and production configuration have
-not yet been implemented or deployed.
+The first browser-service slice provides:
+
+- authenticated `.src` inspection;
+- motion, velocity, marker, layer, wipe, bounds, and hash reporting;
+- idealized LIN-path runtime estimation;
+- operator-only metadata annotation and renamed artifact download;
+- source/output SHA-256 provenance and SQLite audit records;
+- encoding and newline preservation for generated artifacts;
+- a container and local Compose definition.
+
+The service has no controller access or automatic program propagation. See
+[`docs/service-contract.md`](docs/service-contract.md) for the exact supported
+parsing and authorization contract.
+
+## Local development
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+PYTHON=.venv/bin/python scripts/check.sh
+```
+
+The application requires a users JSON file using the existing Production Desk
+secret schema. Point `KUKA_TOOL_USERS_PATH` at a local non-committed fixture and
+set `KUKA_TOOL_REQUIRE_HTTPS=false` only for local development.
+
+## Deployment status
+
+Source implementation and local validation are separate from deployment. The
+service has not been deployed to Fleetlord and has not undergone operator or
+robot-side acceptance.
 
 ## Reference source
 

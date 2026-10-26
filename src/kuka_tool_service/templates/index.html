@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>SRC browser tools</h1>
+<p class="boundary">Outputs are offline review artifacts. This service has no robot-controller access.</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<div class="tools">
+  <section class="panel">
+    <h2>Inspect and estimate</h2>
+    <p>Parse motion, velocities, travel markers, layers, wipes, bounds, and idealized runtime without changing the source.</p>
+    <form method="post" action="{{ url_for('inspect_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <label>Default speed (m/s)<input type="number" name="default_speed_mps" value="0.06" min="0.001" max="2" step="0.001" required></label>
+      <button type="submit">Inspect file</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Annotate metadata</h2>
+    <p>Generate a renamed download with managed metadata comments and an updated KRL DEF name.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('annotate_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <div class="row">
+        <label>Cell<input type="number" name="cell_number" min="1" max="12" value="1" required></label>
+        <label>Part prefix<input type="number" name="part_prefix" min="0" max="100" value="0" required></label>
+        <label>Part suffix<input type="number" name="part_suffix" min="0" max="99" value="1" required></label>
+      </div>
+      <label>Part name<input name="part_name" maxlength="120" required></label>
+      <label>Part link/reference<input name="part_link" maxlength="120" required></label>
+      <div class="row">
+        <label>Flow rate %<input type="number" name="flow_rate_percent" min="0" max="100" value="45" required></label>
+        <label>Cooling<select name="cooling_enabled"><option value="yes">Enabled</option><option value="no">Disabled</option></select></label>
+      </div>
+      <button type="submit">Generate annotated SRC</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate transformed files.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

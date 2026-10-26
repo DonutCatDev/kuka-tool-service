@@ -1,0 +1,13 @@
+https://fleetlord.local:4743 {
+    tls internal
+    encode zstd gzip
+    reverse_proxy kuka-tool-service:4700
+
+    header {
+        Strict-Transport-Security "max-age=0"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "same-origin"
+        Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'"
+    }
+}

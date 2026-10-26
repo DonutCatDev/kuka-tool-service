@@ -1,8 +1,11 @@
 # KUKA Tool Service implementation plan
 
-Status: planned
+Status: implementation in progress
 
 Last reviewed: 2026-10-26
+
+Current local validation evidence:
+[`../validation/2026-10-26-browser-slice-local.md`](../validation/2026-10-26-browser-slice-local.md)
 
 ## Goal
 
@@ -25,14 +28,14 @@ robot controller or production file destination.
 Use a standalone Fleetlord service rather than embedding the tools in an
 existing Production Desk application.
 
-Planned components:
+Target components:
 
 - a small authenticated web application;
 - a headless Python processing package with no GUI imports;
 - isolated, server-generated job directories;
 - SQLite metadata and audit records;
-- a bounded background worker for large transformations;
-- expiring input and output artifacts;
+- a bounded background worker for later long-running transformations;
+- expiring persisted artifacts if later workflows require server-side storage;
 - container health checks and a dedicated service cookie;
 - read-only Homepage and documentation links after deployment is approved.
 
@@ -139,8 +142,9 @@ or transformation must not inherit controller write authority.
 - [x] Add planning and reference-assessment records.
 - [x] Add ignore rules for secrets, runtime state, uploads, artifacts, and caches.
 - [ ] Select and sanitize the golden fixture corpus.
-- [ ] Define the package and route contracts.
-- [ ] Implement Phase 1.
-- [ ] Add container and Compose definitions.
+- [x] Define the initial package and route contracts.
+- [x] Implement Phase 1 inspection and time estimation.
+- [x] Implement the first metadata-annotation browser workflow.
+- [x] Add initial container and Compose definitions.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

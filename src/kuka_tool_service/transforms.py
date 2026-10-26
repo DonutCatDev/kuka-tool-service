@@ -1,0 +1,127 @@
+"""Controlled transformations for reviewable SRC artifacts."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from hashlib import sha256
+import re
+
+from .parser import SourceValidationError, decode_source, inspect_source
+
+
+_DEF_LINE = re.compile(
+    r"^(?P<prefix>\s*DEF\s+)(?P<name>.+?)(?P<suffix>\s*\(\s*\).*)$",
+    re.IGNORECASE,
+)
+_METADATA_LINE = re.compile(
+    r"^; (?:Cell Number|Part Number|Part Name|Part Link|Flow Rate|Cooling Enabled|"
+    r"Initial Layer Speed|Final Layer Speed|Time Estimate) ="
+)
+_KRL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,23}$")
+
+
+@dataclass(frozen=True)
+class MetadataRequest:
+    """Validated metadata fields used to create an annotated artifact."""
+
+    cell_number: int
+    part_prefix: int
+    part_suffix: int
+    part_name: str
+    part_link: str
+    flow_rate_percent: int
+    cooling_enabled: bool
+
+
+@dataclass(frozen=True)
+class GeneratedArtifact:
+    """One generated program and its provenance."""
+
+    filename: str
+    data: bytes
+    input_sha256: str
+    output_sha256: str
+    changed_line_count: int
+
+
+def build_annotated_source(data: bytes, request: MetadataRequest) -> GeneratedArtifact:
+    """Add or replace managed metadata while preserving encoding and newlines."""
+
+    _validate_request(request)
+    document = decode_source(data)
+    report = inspect_source(data)
+    safe_part_name = re.sub(r"[^A-Za-z0-9]+", "_", request.part_name.upper()).strip("_")
+    output_stem = (
+        f"CELL{request.cell_number:02d}-{request.part_prefix:03d}{request.part_suffix:02d}_"
+        f"{safe_part_name}_{request.flow_rate_percent}%"
+    )
+    if not _KRL_IDENTIFIER.fullmatch(output_stem.replace("-", "_").replace("%", "P")):
+        # KRL identifiers are short; keep the filename descriptive but derive a bounded DEF name.
+        def_name = f"C{request.cell_number:02d}_{request.part_prefix:03d}{request.part_suffix:02d}"
+    else:
+        def_name = output_stem.replace("-", "_").replace("%", "P")
+
+    lines = list(document.lines)
+    def_index = next((index for index, line in enumerate(lines) if _DEF_LINE.match(line)), None)
+    if def_index is None:
+        raise SourceValidationError("Metadata annotation requires a supported DEF declaration.")
+
+    match = _DEF_LINE.match(lines[def_index])
+    assert match is not None
+    lines[def_index] = f"{match.group('prefix')}{def_name}{match.group('suffix')}"
+
+    remove_index = def_index + 1
+    while remove_index < len(lines) and _METADATA_LINE.match(lines[remove_index]):
+        del lines[remove_index]
+
+    initial = (
+        f"{report.initial_layer_speed_mps * 1000:.3f} mm/s"
+        if report.initial_layer_speed_mps is not None
+        else "n/a"
+    )
+    final = (
+        f"{report.final_layer_speed_mps * 1000:.3f} mm/s"
+        if report.final_layer_speed_mps is not None
+        else "n/a"
+    )
+    runtime_minutes = round(report.estimated_runtime_seconds / 60)
+    metadata = [
+        f"; Cell Number = CELL{request.cell_number:02d}",
+        f"; Part Number = {request.part_prefix:03d}{request.part_suffix:02d}",
+        f"; Part Name = {request.part_name.strip().upper()}",
+        f"; Part Link = {request.part_link.strip()}",
+        f"; Flow Rate = {request.flow_rate_percent}%",
+        f"; Cooling Enabled = {'yes' if request.cooling_enabled else 'no'}",
+        f"; Initial Layer Speed = {initial}",
+        f"; Final Layer Speed = {final}",
+        f"; Time Estimate = {runtime_minutes // 60:02d}:{runtime_minutes % 60:02d}",
+    ]
+    lines[def_index + 1 : def_index + 1] = metadata
+
+    output_text = document.newline.join(lines)
+    if document.terminal_newline:
+        output_text += document.newline
+    output_data = output_text.encode(document.encoding)
+    return GeneratedArtifact(
+        filename=f"{output_stem}.src",
+        data=output_data,
+        input_sha256=document.sha256,
+        output_sha256=sha256(output_data).hexdigest(),
+        changed_line_count=len(metadata) + 1,
+    )
+
+
+def _validate_request(request: MetadataRequest) -> None:
+    if not 1 <= request.cell_number <= 12:
+        raise SourceValidationError("Cell number must be between 1 and 12.")
+    if not 0 <= request.part_prefix <= 100:
+        raise SourceValidationError("Part prefix must be between 0 and 100.")
+    if not 0 <= request.part_suffix <= 99:
+        raise SourceValidationError("Part suffix must be between 0 and 99.")
+    if not 0 <= request.flow_rate_percent <= 100:
+        raise SourceValidationError("Flow rate must be between 0 and 100 percent.")
+    for label, value in (("Part name", request.part_name), ("Part link", request.part_link)):
+        if not value.strip() or len(value.strip()) > 120:
+            raise SourceValidationError(f"{label} must contain 1 to 120 characters.")
+        if any(character in value for character in ("\r", "\n", ";")):
+            raise SourceValidationError(f"{label} contains unsupported control characters.")

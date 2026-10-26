@@ -1,0 +1,57 @@
+services:
+  kuka-tool-service:
+    build:
+      context: .
+    container_name: kuka-tool-service
+    restart: unless-stopped
+    ports:
+      - "4700:4700"
+    environment:
+      KUKA_TOOL_USERS_PATH: /run/secrets/production_desk_users
+      KUKA_TOOL_DATABASE_PATH: /data/kuka-tool-service.sqlite3
+      KUKA_TOOL_REQUIRE_HTTPS: "true"
+      KUKA_TOOL_PUBLIC_HTTPS_URL: https://fleetlord.local:4743
+    secrets:
+      - production_desk_users
+    volumes:
+      - /srv/sv08/appdata/kuka-tool-service/data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4700/healthz', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      fleet-services:
+        ipv4_address: 172.30.0.23
+
+  kuka-tool-service-proxy:
+    image: caddy:2.10.2-alpine
+    container_name: kuka-tool-service-proxy
+    restart: unless-stopped
+    depends_on:
+      kuka-tool-service:
+        condition: service_healthy
+    ports:
+      - "4743:4743"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/sv08/appdata/kuka-tool-service/caddy-data:/data
+      - /srv/sv08/appdata/kuka-tool-service/caddy-config:/config
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      fleet-services:
+
+networks:
+  fleet-services:
+    external: true
+    name: fleet-services
+
+secrets:
+  production_desk_users:
+    file: /srv/sv08/secrets/production-desk/users.json

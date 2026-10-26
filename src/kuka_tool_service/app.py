@@ -1,0 +1,389 @@
+"""Authenticated Flask browser service for KUKA SRC tools."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from functools import wraps
+from io import BytesIO
+import json
+import os
+from pathlib import Path
+import secrets
+import sqlite3
+from typing import Any, TypeVar, cast
+
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
+
+from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
+from .transforms import MetadataRequest, build_annotated_source
+
+
+ROLES = {"viewer": 0, "operator": 1, "admin": 2}
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def create_app(test_config: dict[str, Any] | None = None) -> Flask:
+    """Create a configured service instance."""
+
+    app = Flask(__name__)
+    app.config.from_mapping(
+        SECRET_KEY=secrets.token_urlsafe(48),
+        SESSION_COOKIE_NAME="kuka_tools_session",
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Strict",
+        SESSION_COOKIE_SECURE=True,
+        MAX_CONTENT_LENGTH=MAX_SOURCE_BYTES + 1024 * 1024,
+        USERS_PATH=os.getenv(
+            "KUKA_TOOL_USERS_PATH", "/run/secrets/production_desk_users"
+        ),
+        DATABASE_PATH=os.getenv(
+            "KUKA_TOOL_DATABASE_PATH", "/data/kuka-tool-service.sqlite3"
+        ),
+        REQUIRE_HTTPS=os.getenv("KUKA_TOOL_REQUIRE_HTTPS", "true").lower() == "true",
+        PUBLIC_HTTPS_URL=os.getenv(
+            "KUKA_TOOL_PUBLIC_HTTPS_URL", "https://fleetlord.local:4743"
+        ),
+    )
+    if test_config:
+        app.config.update(test_config)
+
+    @app.before_request
+    def configure_secret() -> None:
+        try:
+            payload = _users_payload(app, required=False)
+        except (OSError, ValueError, json.JSONDecodeError):
+            payload = None
+        if payload is not None:
+            app.secret_key = payload["session_secret"]
+        if request.endpoint not in {"healthz", "static"}:
+            _require_https(app)
+
+    @app.context_processor
+    def template_context() -> dict[str, Any]:
+        return {
+            "csrf_token": _csrf_token,
+            "current_user": session.get("username"),
+            "current_role": session.get("role"),
+        }
+
+    @app.get("/healthz")
+    def healthz() -> Response:
+        auth_configured = False
+        auth_error = None
+        try:
+            _users_payload(app, required=True)
+            auth_configured = True
+            _initialize_database(app)
+        except (OSError, ValueError, json.JSONDecodeError, sqlite3.Error) as exc:
+            auth_error = str(exc)
+        status = 200 if auth_configured and auth_error is None else 503
+        return jsonify(
+            {
+                "status": "ok" if status == 200 else "degraded",
+                "authentication_configured": auth_configured,
+                "error": auth_error,
+                "controller_access": False,
+            }
+        ), status
+
+    @app.get("/login")
+    def login() -> str:
+        return render_template("login.html")
+
+    @app.post("/login")
+    def login_post() -> Response | tuple[str, int]:
+        _require_csrf()
+        try:
+            users = _users(app)
+        except (OSError, ValueError, json.JSONDecodeError):
+            abort(503, description="KUKA Tool Service authentication is not configured")
+        username = request.form.get("username", "").strip()
+        user = users.get(username)
+        password = request.form.get("password", "")
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Invalid username or password."), 401
+        session.clear()
+        session.update(
+            username=username,
+            role=user["role"],
+            csrf_token=secrets.token_urlsafe(32),
+        )
+        return redirect(url_for("index"))
+
+    @app.post("/logout")
+    @require_role("viewer")
+    def logout() -> Response:
+        _require_csrf()
+        session.clear()
+        return redirect(url_for("login"))
+
+    @app.get("/")
+    @require_role("viewer")
+    def index() -> str:
+        return render_template("index.html")
+
+    @app.post("/inspect")
+    @require_role("viewer")
+    def inspect_upload() -> str:
+        _require_csrf()
+        filename, data = _uploaded_src()
+        default_speed = _positive_float(
+            request.form.get("default_speed_mps", "0.06"), "Default speed"
+        )
+        report = inspect_source(data, filename=filename, default_speed_mps=default_speed)
+        _record_audit(
+            app,
+            operation="inspect",
+            input_sha256=report.sha256,
+            output_sha256=None,
+            parameters={"default_speed_mps": default_speed},
+            result="completed",
+        )
+        return render_template("inspection.html", report=report)
+
+    @app.post("/annotate")
+    @require_role("operator")
+    def annotate_upload() -> Response:
+        _require_csrf()
+        _, data = _uploaded_src()
+        metadata = MetadataRequest(
+            cell_number=_bounded_int("cell_number", 1, 12),
+            part_prefix=_bounded_int("part_prefix", 0, 100),
+            part_suffix=_bounded_int("part_suffix", 0, 99),
+            part_name=request.form.get("part_name", ""),
+            part_link=request.form.get("part_link", ""),
+            flow_rate_percent=_bounded_int("flow_rate_percent", 0, 100),
+            cooling_enabled=request.form.get("cooling_enabled") == "yes",
+        )
+        artifact = build_annotated_source(data, metadata)
+        _record_audit(
+            app,
+            operation="annotate_metadata",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "cell_number": metadata.cell_number,
+                "part_number": f"{metadata.part_prefix:03d}{metadata.part_suffix:02d}",
+                "flow_rate_percent": metadata.flow_rate_percent,
+                "cooling_enabled": metadata.cooling_enabled,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.errorhandler(SourceValidationError)
+    def source_error(error: SourceValidationError) -> tuple[str, int]:
+        return render_template("index.html", error=str(error)), 400
+
+    @app.errorhandler(413)
+    def too_large(_: Exception) -> tuple[str, int]:
+        return render_template("index.html", error="The uploaded file is too large."), 413
+
+    return app
+
+
+def require_role(required: str) -> Callable[[F], F]:
+    """Require a signed-in role at or above ``required``."""
+
+    def decorator(function: F) -> F:
+        @wraps(function)
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
+            role = str(session.get("role", ""))
+            if role not in ROLES:
+                session.clear()
+                return redirect(url_for("login"))
+            if ROLES[role] < ROLES[required]:
+                abort(403)
+            return function(*args, **kwargs)
+
+        return cast(F, wrapped)
+
+    return decorator
+
+
+def _users_payload(app: Flask, required: bool) -> dict[str, Any] | None:
+    injected = app.config.get("USERS_PAYLOAD")
+    if injected is not None:
+        payload = injected
+    else:
+        path = Path(str(app.config["USERS_PATH"]))
+        if not path.is_file():
+            if required:
+                raise ValueError("authentication secret is not configured")
+            return None
+        with path.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("users secret must contain a JSON object")
+    session_secret = payload.get("session_secret")
+    users = payload.get("users")
+    if not isinstance(session_secret, str) or len(session_secret) < 32:
+        raise ValueError("users secret requires session_secret of at least 32 characters")
+    if not isinstance(users, list) or not users:
+        raise ValueError("users secret requires a non-empty users list")
+    return payload
+
+
+def _users(app: Flask) -> dict[str, dict[str, str]]:
+    payload = _users_payload(app, required=True)
+    assert payload is not None
+    result: dict[str, dict[str, str]] = {}
+    for raw in payload["users"]:
+        if not isinstance(raw, dict):
+            raise ValueError("invalid user entry")
+        username = str(raw.get("username", "")).strip()
+        password_hash = str(raw.get("password_hash", "")).strip()
+        role = str(raw.get("role", "")).strip().lower()
+        if not username or not password_hash or role not in ROLES or username in result:
+            raise ValueError("each user needs a unique username, password_hash, and valid role")
+        result[username] = {"password_hash": password_hash, "role": role}
+    return result
+
+
+def _require_https(app: Flask) -> None:
+    if not app.config["REQUIRE_HTTPS"]:
+        return
+    forwarded = request.headers.get("X-Forwarded-Proto", "").lower()
+    if not request.is_secure and forwarded != "https":
+        abort(
+            make_response(
+                jsonify({"error": f"Use {app.config['PUBLIC_HTTPS_URL']}"}),
+                426,
+            )
+        )
+
+
+def _csrf_token() -> str:
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return str(token)
+
+
+def _require_csrf() -> None:
+    supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+    expected = session.get("csrf_token", "")
+    if not supplied or not expected or not secrets.compare_digest(str(supplied), str(expected)):
+        abort(400, description="invalid CSRF token")
+
+
+def _uploaded_src() -> tuple[str, bytes]:
+    upload = request.files.get("src_file")
+    if upload is None or not upload.filename:
+        raise SourceValidationError("Select a KUKA .src file.")
+    filename = secure_filename(upload.filename)
+    if not filename or Path(filename).suffix.lower() != ".src":
+        raise SourceValidationError("Only .src files are accepted.")
+    data = upload.stream.read(MAX_SOURCE_BYTES + 1)
+    if len(data) > MAX_SOURCE_BYTES:
+        raise SourceValidationError("The uploaded SRC file exceeds the 32 MiB limit.")
+    return filename, data
+
+
+def _positive_float(raw: str, label: str) -> float:
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise SourceValidationError(f"{label} must be numeric.") from exc
+    if not 0 < value <= 2:
+        raise SourceValidationError(f"{label} must be greater than 0 and at most 2 m/s.")
+    return value
+
+
+def _bounded_int(name: str, minimum: int, maximum: int) -> int:
+    try:
+        value = int(request.form.get(name, ""))
+    except ValueError as exc:
+        raise SourceValidationError(f"{name.replace('_', ' ').title()} must be an integer.") from exc
+    if not minimum <= value <= maximum:
+        raise SourceValidationError(
+            f"{name.replace('_', ' ').title()} must be between {minimum} and {maximum}."
+        )
+    return value
+
+
+@contextmanager
+def _database(app: Flask) -> Iterator[sqlite3.Connection]:
+    path = Path(str(app.config["DATABASE_PATH"]))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, timeout=30)
+    try:
+        yield connection
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def _initialize_database(app: Flask) -> None:
+    with _database(app) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                username TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                input_sha256 TEXT NOT NULL,
+                output_sha256 TEXT,
+                parameters_json TEXT NOT NULL,
+                result TEXT NOT NULL
+            )
+            """
+        )
+
+
+def _record_audit(
+    app: Flask,
+    *,
+    operation: str,
+    input_sha256: str,
+    output_sha256: str | None,
+    parameters: dict[str, Any],
+    result: str,
+) -> None:
+    _initialize_database(app)
+    with _database(app) as connection:
+        connection.execute(
+            """
+            INSERT INTO audit_events (
+                created_at, username, operation, input_sha256,
+                output_sha256, parameters_json, result
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now(timezone.utc).isoformat(),
+                str(session["username"]),
+                operation,
+                input_sha256,
+                output_sha256,
+                json.dumps(parameters, sort_keys=True, separators=(",", ":")),
+                result,
+            ),
+        )
