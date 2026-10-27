@@ -1,0 +1,21 @@
+&ACCESS RVP
+DEF SAMPLE()
+; generated fixture
+$VEL.CP = 0.200000
+PTP {A 0, Z 0, Y 0, X 0}
+$VEL.CP = 0.100000
+LIN {X 0, Y 0, Z 0, A 0}
+;travel end
+$VEL.CP = 0.050000
+LIN {X 100, Y 0, Z 0}
+;travel start
+$VEL.CP = 0.100000
+LIN {X 110, Y 0, Z 0}
+LIN {X 110, Y 0, Z 10}
+;travel end
+$VEL.CP = 0.050000
+LIN {Z 10, X 210, Y 0}
+;travel start
+$VEL.CP = 0.100000
+LIN {X 210, Y 0, Z 10}
+END

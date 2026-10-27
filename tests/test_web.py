@@ -193,6 +193,42 @@ def test_path_merge_records_both_inputs_and_returns_attachment(client, app) -> N
     assert response.headers["X-Secondary-SHA256"] in row[2]
 
 
+def test_probe_grid_is_audited_review_only_attachment(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/generate-probe-grid",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "safe_z_mm": "20",
+            "probe_z_mm": "15",
+            "spacing_mm": "50",
+            "margin_mm": "0",
+            "travel_speed_mps": "0.15",
+            "probe_speed_mps": "0.055",
+            "scan_pattern": "zigzag",
+            "scan_priority": "row",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=fixture_probe_grid.src"
+    )
+    assert response.headers["X-Probe-Point-Count"] == "5"
+    assert b"REVIEW-ONLY PROBING ARTIFACT" in response.data
+    assert b"generated fixture" not in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "generate_probe_grid"
+    assert '"point_count":5' in row[1]
+
+
 def test_viewer_cannot_generate_artifact(client) -> None:
     login(client, username="viewer", password="view only")
     response = client.post(
@@ -203,6 +239,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert client.post("/modify-velocity").status_code == 403
     assert client.post("/adjust-xyz").status_code == 403
     assert client.post("/merge-paths").status_code == 403
+    assert client.post("/generate-probe-grid").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

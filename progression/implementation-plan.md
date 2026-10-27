@@ -12,6 +12,8 @@ and
 [`../validation/2026-10-27-xyz-adjustment-local.md`](../validation/2026-10-27-xyz-adjustment-local.md)
 and
 [`../validation/2026-10-27-path-merge-local.md`](../validation/2026-10-27-path-merge-local.md)
+and
+[`../validation/2026-10-27-probe-grid-local.md`](../validation/2026-10-27-probe-grid-local.md)
 
 ## Goal
 
@@ -157,6 +159,11 @@ and uses the primary program's header and tail. Velocity normalization remains
 available as a separate transformation rather than an implicit merge side
 effect.
 
+Probe-grid generation is implemented as a deterministic review-only artifact.
+It uses extrusion bounds and source orientation fields but deliberately omits
+uploaded process-control scaffolding. Controller integration and physical path
+validation remain separate engineering work.
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.
@@ -167,6 +174,7 @@ effect.
 - [x] Add a synthetic golden fixture for velocity replacement.
 - [x] Add a synthetic golden fixture for XYZ adjustment.
 - [x] Add synthetic golden fixtures for alternating path merge.
+- [x] Add synthetic golden fixtures for probe-grid generation.
 - [x] Define the initial package and route contracts.
 - [x] Implement Phase 1 inspection and time estimation.
 - [x] Implement the first metadata-annotation browser workflow.
@@ -174,5 +182,6 @@ effect.
 - [x] Implement marker-aware velocity modification.
 - [x] Implement marker-aware extrusion XYZ adjustment.
 - [x] Implement strict alternating path merge.
+- [x] Implement bounded review-only probe-grid generation.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

@@ -33,6 +33,7 @@ from werkzeug.utils import secure_filename
 
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
+from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
     MetadataRequest,
     VelocityRequest,
@@ -328,6 +329,58 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         response.headers["X-Primary-SHA256"] = artifact.primary_sha256
         response.headers["X-Secondary-SHA256"] = artifact.secondary_sha256
         response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.post("/generate-probe-grid")
+    @require_role("operator")
+    def generate_probe_grid_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that the probe program requires independent operator review."
+            )
+        filename, data = _uploaded_src()
+        probe = ProbeRequest(
+            safe_z_mm=_bounded_float("safe_z_mm", -10_000, 10_000),
+            probe_z_mm=_bounded_float("probe_z_mm", -10_000, 10_000),
+            spacing_mm=_bounded_float("spacing_mm", 0.1, 1000),
+            margin_mm=_bounded_float("margin_mm", 0, 1000),
+            travel_speed_mps=_bounded_float("travel_speed_mps", 0.000001, 2),
+            probe_speed_mps=_bounded_float("probe_speed_mps", 0.000001, 2),
+            scan_pattern=request.form.get("scan_pattern", ""),
+            scan_priority=request.form.get("scan_priority", ""),
+        )
+        artifact = build_probe_source(data, filename, probe)
+        _record_audit(
+            app,
+            operation="generate_probe_grid",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "point_count": artifact.point_count,
+                "bounds": artifact.bounds,
+                "safe_z_mm": probe.safe_z_mm,
+                "probe_z_mm": probe.probe_z_mm,
+                "spacing_mm": probe.spacing_mm,
+                "margin_mm": probe.margin_mm,
+                "travel_speed_mps": probe.travel_speed_mps,
+                "probe_speed_mps": probe.probe_speed_mps,
+                "scan_pattern": probe.scan_pattern,
+                "scan_priority": probe.scan_priority,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Probe-Point-Count"] = str(artifact.point_count)
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 

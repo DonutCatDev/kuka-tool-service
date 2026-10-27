@@ -117,6 +117,26 @@ returned and audited. This check establishes structural compatibility only; it
 does not validate transition safety, reachability, collision clearance, process
 timing, or controller execution.
 
+## Probe-grid generation
+
+Probe generation derives XY bounds only from complete Cartesian `LIN` commands
+inside strictly marker-classified extrusion regions. It rounds each half-extent
+outward to the requested spacing, optionally adds a non-negative margin, and
+orders the grid by row or column using one-way or zigzag traversal.
+
+At each point the generated sequence moves to safe Z at travel speed, descends
+to probe Z at probe speed, issues `HALT`, and returns to safe Z. Safe Z must be
+greater than probe Z. Spacing is limited to 0.1–1000 mm, margin to 0–1000 mm,
+speeds to greater than zero through 2 m/s, and a generated grid to 10,000 points.
+
+The first extrusion LIN supplies only the non-XYZ motion fields, such as
+orientation, external axes, and approximation mode. The generated artifact is a
+new review-only program and intentionally does not copy source initialization,
+tool/base selection, safety logic, process outputs, PTP entry, or shutdown
+logic. Its header states these omissions. It must not be treated as a
+controller-ready probing routine without independent engineering integration
+and physical validation.
+
 ## Authorization
 
 - `viewer`, `operator`, and `admin` may inspect files.
@@ -124,6 +144,7 @@ timing, or controller execution.
 - `operator` and `admin` may generate velocity-modified artifacts.
 - `operator` and `admin` may generate XYZ-adjusted artifacts.
 - `operator` and `admin` may generate merged artifacts.
+- `operator` and `admin` may generate probe-grid artifacts.
 - all mutation requests require a session-bound CSRF token.
 - the service uses the unique `kuka_tools_session` cookie name.
 - generated programs are attachment-only downloads.

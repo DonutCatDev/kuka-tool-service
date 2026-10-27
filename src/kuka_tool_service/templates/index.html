@@ -16,6 +16,33 @@
   </section>
 
   <section class="panel">
+    <h2>Generate probe grid</h2>
+    <p>Derive an XY grid from extrusion bounds and generate a review-only probing program without copying source process-control logic.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('generate_probe_grid_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <div class="row">
+        <label>Safe Z (mm)<input type="number" name="safe_z_mm" value="200" min="-10000" max="10000" step="0.001" required></label>
+        <label>Probe Z (mm)<input type="number" name="probe_z_mm" value="170" min="-10000" max="10000" step="0.001" required></label>
+        <label>Spacing (mm)<input type="number" name="spacing_mm" value="50" min="0.1" max="1000" step="0.1" required></label>
+        <label>Margin (mm)<input type="number" name="margin_mm" value="0" min="0" max="1000" step="0.1" required></label>
+      </div>
+      <div class="row">
+        <label>Travel speed (m/s)<input type="number" name="travel_speed_mps" value="0.15" min="0.000001" max="2" step="0.001" required></label>
+        <label>Probe speed (m/s)<input type="number" name="probe_speed_mps" value="0.055" min="0.000001" max="2" step="0.001" required></label>
+        <label>Priority<select name="scan_priority"><option value="column">Column</option><option value="row">Row</option></select></label>
+        <label>Pattern<select name="scan_pattern"><option value="zigzag">Zigzag</option><option value="one_way">One way</option></select></label>
+      </div>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand this review-only program omits controller setup and requires independent engineering review.</label>
+      <button type="submit">Generate probe-grid SRC</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate transformed files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Merge alternating paths</h2>
     <p>Interleave equal, Z-aligned path blocks from two structurally compatible programs while retaining the primary header and tail.</p>
     {% if current_role in ('operator', 'admin') %}
