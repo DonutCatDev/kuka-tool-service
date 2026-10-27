@@ -75,6 +75,39 @@ def test_mesh_inspection_reports_missing_cells_and_audits(client, app) -> None:
     assert row == ("inspect_mesh", None)
 
 
+def test_mesh_rectangle_edit_is_audited_and_attachment_only(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/edit-mesh",
+        data={
+            "csrf_token": csrf_token(client),
+            "mesh_file": (BytesIO(b",0,10\n0,1,2\n10,3,4\n"), "mesh.csv"),
+            "operation": "add",
+            "edit_value": "0.5",
+            "x_min": "0",
+            "x_max": "10",
+            "y_min": "10",
+            "y_max": "10",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=mesh_edited.csv"
+    )
+    assert response.headers["X-Changed-Cell-Count"] == "2"
+    assert response.data == b",0,10\n0,1,2.5\n10,3,4.5\n"
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "edit_mesh"
+    assert '"changed_cell_count":2' in row[1]
+
+
 def test_mesh_speed_download_records_both_hashes_and_audit(client, app) -> None:
     login(client)
     response = client.post(
@@ -328,6 +361,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert client.post("/merge-paths").status_code == 403
     assert client.post("/generate-probe-grid").status_code == 403
     assert client.post("/compensate-mesh-speed").status_code == 403
+    assert client.post("/edit-mesh").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

@@ -67,6 +67,24 @@ the service does not determine whether a requested speed is physically safe.
 The browser requires an explicit acknowledgement of independent operator review
 before generating the download.
 
+## Mesh rectangle editing
+
+Mesh rectangle editing accepts one strictly parsed mesh CSV and selects cells by
+inclusive X and Y coordinate bounds. At least one coordinate on each axis must
+fall inside the requested bounds. The selected measured cells may be set to a
+value, or have a value added, subtracted, or multiplied. Bounds and edit values
+must be finite; reversed bounds, unsupported operations, and no-op edits are
+rejected.
+
+An edit fails as a whole if its rectangle contains an unmeasured cell or would
+produce a height outside -10000 through 10000 mm. Output uses a deterministic
+CSV representation, retains UTF-8 BOM and CRLF/LF style when present, preserves
+untouched values numerically, and rounds edited results to six decimal places.
+Output is reparsed by the validation suite. The browser returns the result only as an
+attachment with input/output hashes and changed-cell count headers. It requires
+operator authorization, CSRF protection, and explicit acknowledgement that the
+mesh needs independent review.
+
 ## XYZ adjustment
 
 XYZ adjustment applies a uniform millimetre offset to complete Cartesian `LIN`

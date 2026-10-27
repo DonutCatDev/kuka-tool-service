@@ -34,6 +34,7 @@ from werkzeug.utils import secure_filename
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
 from .mesh import MAX_MESH_BYTES, parse_mesh_csv
+from .mesh_editor import MeshEditRequest, build_edited_mesh
 from .mesh_compensation import MeshCompensationRequest, build_mesh_compensated_source
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
@@ -184,6 +185,53 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             result="completed",
         )
         return render_template("mesh_inspection.html", filename=filename, mesh=mesh)
+
+    @app.post("/edit-mesh")
+    @require_role("operator")
+    def edit_mesh_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that edited mesh values require independent operator review."
+            )
+        filename, data = _uploaded_file("mesh_file", ".csv", MAX_MESH_BYTES, "mesh CSV")
+        edit = MeshEditRequest(
+            operation=request.form.get("operation", ""),
+            value=_bounded_float("edit_value", -10_000, 10_000),
+            x_min=_bounded_float("x_min", -100_000, 100_000),
+            x_max=_bounded_float("x_max", -100_000, 100_000),
+            y_min=_bounded_float("y_min", -100_000, 100_000),
+            y_max=_bounded_float("y_max", -100_000, 100_000),
+        )
+        artifact = build_edited_mesh(data, filename, edit)
+        _record_audit(
+            app,
+            operation="edit_mesh",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "operation": edit.operation,
+                "value": edit.value,
+                "x_min": edit.x_min,
+                "x_max": edit.x_max,
+                "y_min": edit.y_min,
+                "y_max": edit.y_max,
+                "changed_cell_count": artifact.changed_cell_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Changed-Cell-Count"] = str(artifact.changed_cell_count)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @app.post("/compensate-mesh-speed")
     @require_role("operator")

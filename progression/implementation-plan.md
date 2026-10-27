@@ -177,6 +177,12 @@ Endpoint mesh-speed compensation is implemented with golden coverage and output
 reinspection. It preserves geometry and does not split moves at zone boundaries.
 Historical boundary-splitting behavior remains a separately gated enhancement.
 
+Browser mesh editing now supports one audited rectangular set/add/subtract/
+multiply operation using inclusive mesh-coordinate bounds. Interactive grid
+painting, previews, and undo/redo remain future browser-interface work. Local
+evidence is recorded in
+[the mesh-edit validation report](../validation/2026-10-27-mesh-rectangle-edit-local.md).
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.
