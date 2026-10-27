@@ -88,3 +88,7 @@ Deployment is a separate authorized task. Before enabling operator access:
 Prefer the established Semaphore workflow for privileged Fleetlord deployment
 when its reviewed template and encrypted credentials are available. Direct SSH
 with interactive `sudo` is only the documented fallback.
+
+The repository-owned preflight, deployment, and Semaphore variable guidance is
+in [`../ansible/README.md`](../ansible/README.md). Run preflight first. Deployment
+requires an explicit approval variable and the exact reviewed commit revision.

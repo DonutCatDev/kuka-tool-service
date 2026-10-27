@@ -19,3 +19,10 @@ if command -v docker >/dev/null 2>&1; then
 else
     echo "Docker unavailable; Compose validation skipped."
 fi
+
+if command -v ansible-playbook >/dev/null 2>&1; then
+    ansible-playbook --syntax-check -i 'fleetlord,' ansible/preflight.yml
+    ansible-playbook --syntax-check -i 'fleetlord,' ansible/deploy.yml
+else
+    echo "Ansible unavailable; deployment playbook syntax validation skipped."
+fi

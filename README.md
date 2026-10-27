@@ -66,7 +66,9 @@ review expectations, retention behavior, and the deployment acceptance checklist
 
 Source implementation and local validation are separate from deployment. The
 service has not been deployed to Fleetlord and has not undergone operator or
-robot-side acceptance.
+robot-side acceptance. Guarded Semaphore-oriented preflight and deployment
+playbooks are prepared under [`ansible/`](ansible/); running them still requires
+a separate authorization and reviewed release revision.
 
 ## Reference source
 

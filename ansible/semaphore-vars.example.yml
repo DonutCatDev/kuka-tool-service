@@ -1,0 +1,5 @@
+---
+# Keep approval false in source. Set true only in the reviewed deployment template.
+kuka_tool_deployment_approved: false
+# Replace with the exact pushed commit selected for the pilot.
+kuka_tool_release_revision: "0000000"

@@ -235,5 +235,10 @@ recorded in
 - [x] Implement bounded review-only probe-grid generation.
 - [x] Implement the mesh parsing/interpolation foundation.
 - [x] Implement endpoint mesh-speed compensation.
-- [ ] Add Fleet Control deployment automation after local acceptance.
+- [x] Add guarded Fleetlord preflight and deployment automation.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.
+
+The automation is source-reviewed and covered by static safety-contract tests,
+but Ansible syntax execution, Docker/Compose validation, Semaphore preflight,
+and deployment remain pending. Local evidence is recorded in
+[the deployment automation validation report](../validation/2026-10-27-deployment-automation-local.md).

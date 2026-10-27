@@ -1,0 +1,74 @@
+---
+- name: Preflight KUKA Tool Service deployment
+  hosts: fleet_host
+  gather_facts: false
+  become: true
+  serial: 1
+
+  pre_tasks:
+    - name: Restrict preflight to Fleetlord
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "fleetlord"
+          - ansible_host == "fleetlord.local"
+        fail_msg: Refusing to inspect an unexpected host.
+
+  tasks:
+    - name: Inspect the shared Production Desk users secret
+      ansible.builtin.stat:
+        path: /srv/sv08/secrets/production-desk/users.json
+      register: kuka_tool_users
+
+    - name: Require the protected users secret
+      ansible.builtin.assert:
+        that:
+          - kuka_tool_users.stat.exists
+          - kuka_tool_users.stat.isreg
+          - not kuka_tool_users.stat.islnk
+          - kuka_tool_users.stat.pw_name == "root"
+          - kuka_tool_users.stat.gr_name == "root"
+          - kuka_tool_users.stat.mode == "0600"
+        fail_msg: >-
+          KUKA Tool Service requires root-owned mode-0600
+          /srv/sv08/secrets/production-desk/users.json.
+
+    - name: Verify Docker daemon access
+      ansible.builtin.command:
+        argv: [docker, version]
+      changed_when: false
+      register: kuka_tool_docker_version
+
+    - name: Verify Docker Compose availability
+      ansible.builtin.command:
+        argv: [docker, compose, version]
+      changed_when: false
+      register: kuka_tool_compose_version
+
+    - name: Verify the external service network
+      ansible.builtin.command:
+        argv: [docker, network, inspect, fleet-services]
+      changed_when: false
+
+    - name: Inspect an existing stack definition
+      ansible.builtin.stat:
+        path: /opt/stacks/kuka-tool-service/compose.yaml
+      register: kuka_tool_existing_compose
+
+    - name: Validate an existing stack definition
+      ansible.builtin.command:
+        argv: [docker, compose, config, --quiet]
+        chdir: /opt/stacks/kuka-tool-service
+      changed_when: false
+      when: kuka_tool_existing_compose.stat.isreg | default(false)
+
+    - name: Report preflight state
+      ansible.builtin.debug:
+        msg:
+          target: "{{ inventory_hostname }}"
+          users_secret_ready: true
+          docker_ready: "{{ kuka_tool_docker_version.rc == 0 }}"
+          compose_ready: "{{ kuka_tool_compose_version.rc == 0 }}"
+          fleet_services_network_ready: true
+          existing_stack: "{{ kuka_tool_existing_compose.stat.exists }}"
+          controller_access_requested: false
+          deployment_performed: false
