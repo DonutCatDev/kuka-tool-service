@@ -10,6 +10,8 @@ and
 [`../validation/2026-10-27-velocity-modification-local.md`](../validation/2026-10-27-velocity-modification-local.md)
 and
 [`../validation/2026-10-27-xyz-adjustment-local.md`](../validation/2026-10-27-xyz-adjustment-local.md)
+and
+[`../validation/2026-10-27-path-merge-local.md`](../validation/2026-10-27-path-merge-local.md)
 
 ## Goal
 
@@ -149,6 +151,12 @@ marker-classified extrusion regions. Setup, return-travel, and wipe motions are
 preserved. Individual-layer selection and graphical preview remain future
 browser-interface work.
 
+Alternating path merge is implemented for equal-count, Z-aligned programs with
+compatible setup and shutdown scaffolding. It preserves original block content
+and uses the primary program's header and tail. Velocity normalization remains
+available as a separate transformation rather than an implicit merge side
+effect.
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.
@@ -158,11 +166,13 @@ browser-interface work.
 - [ ] Select and sanitize the golden fixture corpus.
 - [x] Add a synthetic golden fixture for velocity replacement.
 - [x] Add a synthetic golden fixture for XYZ adjustment.
+- [x] Add synthetic golden fixtures for alternating path merge.
 - [x] Define the initial package and route contracts.
 - [x] Implement Phase 1 inspection and time estimation.
 - [x] Implement the first metadata-annotation browser workflow.
 - [x] Add initial container and Compose definitions.
 - [x] Implement marker-aware velocity modification.
 - [x] Implement marker-aware extrusion XYZ adjustment.
+- [x] Implement strict alternating path merge.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

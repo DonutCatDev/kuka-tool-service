@@ -32,6 +32,7 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
+from .merger import build_merged_source
 from .transforms import (
     MetadataRequest,
     VelocityRequest,
@@ -56,7 +57,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict",
         SESSION_COOKIE_SECURE=True,
-        MAX_CONTENT_LENGTH=MAX_SOURCE_BYTES + 1024 * 1024,
+        MAX_CONTENT_LENGTH=(2 * MAX_SOURCE_BYTES) + 1024 * 1024,
         USERS_PATH=os.getenv(
             "KUKA_TOOL_USERS_PATH", "/run/secrets/production_desk_users"
         ),
@@ -289,6 +290,47 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
+    @app.post("/merge-paths")
+    @require_role("operator")
+    def merge_paths_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that the merged path requires independent operator review."
+            )
+        primary_name, primary_data = _uploaded_src("primary_src")
+        secondary_name, secondary_data = _uploaded_src("secondary_src")
+        artifact = build_merged_source(
+            primary_data,
+            secondary_data,
+            primary_name,
+            secondary_name,
+        )
+        _record_audit(
+            app,
+            operation="merge_paths",
+            input_sha256=artifact.primary_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "secondary_sha256": artifact.secondary_sha256,
+                "primary_block_count": artifact.primary_block_count,
+                "secondary_block_count": artifact.secondary_block_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Primary-SHA256"] = artifact.primary_sha256
+        response.headers["X-Secondary-SHA256"] = artifact.secondary_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     @app.errorhandler(SourceValidationError)
     def source_error(error: SourceValidationError) -> tuple[str, int]:
         return render_template("index.html", error=str(error)), 400
@@ -386,8 +428,8 @@ def _require_csrf() -> None:
         abort(400, description="invalid CSRF token")
 
 
-def _uploaded_src() -> tuple[str, bytes]:
-    upload = request.files.get("src_file")
+def _uploaded_src(field_name: str = "src_file") -> tuple[str, bytes]:
+    upload = request.files.get(field_name)
     if upload is None or not upload.filename:
         raise SourceValidationError("Select a KUKA .src file.")
     filename = secure_filename(upload.filename)

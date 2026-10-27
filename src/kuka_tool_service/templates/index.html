@@ -16,6 +16,22 @@
   </section>
 
   <section class="panel">
+    <h2>Merge alternating paths</h2>
+    <p>Interleave equal, Z-aligned path blocks from two structurally compatible programs while retaining the primary header and tail.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('merge_paths_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Primary SRC file<input type="file" name="primary_src" accept=".src" required></label>
+      <label>Secondary SRC file<input type="file" name="secondary_src" accept=".src" required></label>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand the merged program requires independent operator review before controller use.</label>
+      <button type="submit">Generate merged SRC</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate transformed files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Adjust extrusion XYZ</h2>
     <p>Apply millimetre offsets to complete Cartesian LIN commands inside extrusion regions. Setup and return-travel motions remain unchanged.</p>
     {% if current_role in ('operator', 'admin') %}

@@ -90,12 +90,40 @@ the browser requires explicit acknowledgement that the result needs independent
 operator review. Offsets are finite, bounded to -1000 through 1000 mm per axis,
 and cannot all be zero.
 
+## Alternating path merge
+
+Path merge accepts a primary and secondary SRC program and interleaves complete
+path blocks in primary/secondary order. A block begins with its entry velocity
+and travel, contains one `;travel end` delimited extrusion region, and ends at
+`;travel start`; an immediately following same-Z wipe is retained with that
+block. Original block text and velocity assignments are preserved.
+
+The generated program uses the primary file's header, `DEF` declaration, final
+return path, shutdown sequence, encoding, newline style, and terminal-newline
+state. Before merging, the service requires:
+
+- different primary and secondary byte streams;
+- the same encoding and non-mixed newline style;
+- structurally equivalent headers and tails after normalizing program names,
+  motion coordinates, and velocity values;
+- strict travel-marker ordering and complete Cartesian extrusion LIN commands;
+- equal path-block counts;
+- paired block Z heights within 0.05 mm.
+
+The merged output is parsed again and rejected if it exceeds normal source
+limits, contains an incomplete Cartesian LIN, or does not retain the expected
+combined extrusion-block count. Both input hashes and the output hash are
+returned and audited. This check establishes structural compatibility only; it
+does not validate transition safety, reachability, collision clearance, process
+timing, or controller execution.
+
 ## Authorization
 
 - `viewer`, `operator`, and `admin` may inspect files.
 - `operator` and `admin` may generate annotated artifacts.
 - `operator` and `admin` may generate velocity-modified artifacts.
 - `operator` and `admin` may generate XYZ-adjusted artifacts.
+- `operator` and `admin` may generate merged artifacts.
 - all mutation requests require a session-bound CSRF token.
 - the service uses the unique `kuka_tools_session` cookie name.
 - generated programs are attachment-only downloads.

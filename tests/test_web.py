@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
 import sqlite3
 
 from kuka_tool_service import create_app
 
 from conftest import csrf_token, login, sample_src
+
+
+MERGE_FIXTURES = Path(__file__).parent / "fixtures" / "merge"
 
 
 def test_health_reports_no_controller_access(client) -> None:
@@ -153,6 +157,42 @@ def test_xyz_download_is_audited_and_attachment_only(client, app) -> None:
     assert '"changed_line_count":2' in row[1]
 
 
+def test_path_merge_records_both_inputs_and_returns_attachment(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/merge-paths",
+        data={
+            "csrf_token": csrf_token(client),
+            "primary_src": (
+                BytesIO((MERGE_FIXTURES / "primary.src").read_bytes()),
+                "primary.src",
+            ),
+            "secondary_src": (
+                BytesIO((MERGE_FIXTURES / "secondary.src").read_bytes()),
+                "secondary.src",
+            ),
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.data == (MERGE_FIXTURES / "expected.src").read_bytes()
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=primary_merged.src"
+    )
+    assert len(response.headers["X-Primary-SHA256"]) == 64
+    assert len(response.headers["X-Secondary-SHA256"]) == 64
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, input_sha256, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "merge_paths"
+    assert row[1] == response.headers["X-Primary-SHA256"]
+    assert response.headers["X-Secondary-SHA256"] in row[2]
+
+
 def test_viewer_cannot_generate_artifact(client) -> None:
     login(client, username="viewer", password="view only")
     response = client.post(
@@ -162,6 +202,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert response.status_code == 403
     assert client.post("/modify-velocity").status_code == 403
     assert client.post("/adjust-xyz").status_code == 403
+    assert client.post("/merge-paths").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

@@ -1,0 +1,32 @@
+&ACCESS RVP
+DEF PRIMARY()
+; shared setup
+PTP {X 0, Y 0, Z 5}
+$VEL.CP = 0.100000
+LIN {X 1, Y 0, Z 5}
+;travel end
+$VEL.CP = 0.050000
+LIN {X 10, Y 0, Z 5}
+;travel start
+$VEL.CP = 0.110000
+LIN {X 101, Y 0, Z 5}
+;travel end
+$VEL.CP = 0.045000
+LIN {X 110, Y 0, Z 5}
+;travel start
+$VEL.CP = 0.100000
+LIN {X 1, Y 0, Z 10}
+;travel end
+$VEL.CP = 0.050000
+LIN {X 10, Y 0, Z 10}
+;travel start
+$VEL.CP = 0.110000
+LIN {X 101, Y 0, Z 10}
+;travel end
+$VEL.CP = 0.045000
+LIN {X 110, Y 0, Z 10}
+;travel start
+$VEL.CP = 0.100000
+LIN {X 0, Y 0, Z 20}
+; shared shutdown
+END
