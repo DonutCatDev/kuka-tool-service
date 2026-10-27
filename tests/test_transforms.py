@@ -9,14 +9,17 @@ from kuka_tool_service.parser import SourceValidationError
 from kuka_tool_service.transforms import (
     MetadataRequest,
     VelocityRequest,
+    XYZRequest,
     build_annotated_source,
     build_velocity_source,
+    build_xyz_source,
 )
 
 from conftest import SAMPLE_LINES
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "velocity"
+XYZ_FIXTURES = Path(__file__).parent / "fixtures" / "xyz"
 
 
 def request() -> MetadataRequest:
@@ -118,3 +121,49 @@ def test_velocity_modification_rejects_ambiguous_markers(lines, message) -> None
             "bad.src",
             VelocityRequest(extrusion_mps=0.04, travel_mps=0.1),
         )
+
+
+def test_xyz_adjustment_matches_golden_bytes() -> None:
+    artifact = build_xyz_source(
+        (XYZ_FIXTURES / "input.src").read_bytes(),
+        "Cell 04.src",
+        XYZRequest(x_offset_mm=1.25, y_offset_mm=-2, z_offset_mm=0.25),
+    )
+
+    assert artifact.data == (XYZ_FIXTURES / "expected.src").read_bytes()
+    assert artifact.filename == "Cell_04_xyz.src"
+    assert artifact.changed_line_count == 1
+
+
+def test_xyz_adjustment_preserves_cp1252_crlf() -> None:
+    source = ("; café\r\n" + "\r\n".join(SAMPLE_LINES) + "\r\n").encode("cp1252")
+    artifact = build_xyz_source(
+        source,
+        "sample.src",
+        XYZRequest(x_offset_mm=1, y_offset_mm=-2, z_offset_mm=0.5),
+    )
+    decoded = artifact.data.decode("cp1252")
+
+    assert artifact.changed_line_count == 2
+    assert "; café\r\n" in decoded
+    assert "LIN {X 101.000, Y -2.000, Z 0.500}" in decoded
+    assert "LIN {X 110, Y 0, Z 0}" in decoded
+    assert artifact.data.endswith(b"\r\n")
+
+
+def test_xyz_adjustment_rejects_incomplete_extrusion_lin() -> None:
+    source = b"DEF BAD()\n;travel end\nLIN {X 1, Y 2}\n;travel start\nEND\n"
+    with pytest.raises(SourceValidationError, match="exactly one X, Y, and Z"):
+        build_xyz_source(
+            source,
+            "bad.src",
+            XYZRequest(x_offset_mm=1, y_offset_mm=0, z_offset_mm=0),
+        )
+
+
+def test_xyz_adjustment_rejects_zero_or_out_of_range_offsets() -> None:
+    source = ("\n".join(SAMPLE_LINES) + "\n").encode()
+    with pytest.raises(SourceValidationError, match="non-zero"):
+        build_xyz_source(source, "bad.src", XYZRequest(0, 0, 0))
+    with pytest.raises(SourceValidationError, match="between -1000 and 1000"):
+        build_xyz_source(source, "bad.src", XYZRequest(1001, 0, 0))

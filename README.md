@@ -34,6 +34,7 @@ The first browser-service slice provides:
 - idealized LIN-path runtime estimation;
 - operator-only metadata annotation and renamed artifact download;
 - operator-only extrusion and return-travel velocity replacement;
+- operator-only XYZ offsets for marker-classified extrusion LIN motions;
 - source/output SHA-256 provenance and SQLite audit records;
 - encoding and newline preservation for generated artifacts;
 - a container and local Compose definition.

@@ -67,11 +67,35 @@ the service does not determine whether a requested speed is physically safe.
 The browser requires an explicit acknowledgement of independent operator review
 before generating the download.
 
+## XYZ adjustment
+
+XYZ adjustment applies a uniform millimetre offset to complete Cartesian `LIN`
+commands in marker-classified extrusion regions. It uses the same strict marker
+state machine as velocity modification: extrusion begins at `;travel end`,
+return travel begins at `;travel start`, and marker types must begin with travel
+end and alternate.
+
+Coordinate fields may appear in any order and may use signs, leading decimals,
+or scientific notation. Every targeted `LIN` must contain exactly one X, one Y,
+and one Z value. Duplicate or incomplete fields reject the whole operation. The
+three results are formatted to the historical utility's 0.001 mm precision;
+orientation, approximation, external-axis, comments, and other fields remain
+unchanged. Commented examples containing `LIN` text are not motion commands and
+remain unchanged.
+
+Setup motions, PTP commands, return-travel LIN commands, and wipe moves after a
+travel-start marker are intentionally not adjusted. Consequently, an offset can
+change the relationship between the extrusion path and those preserved motions;
+the browser requires explicit acknowledgement that the result needs independent
+operator review. Offsets are finite, bounded to -1000 through 1000 mm per axis,
+and cannot all be zero.
+
 ## Authorization
 
 - `viewer`, `operator`, and `admin` may inspect files.
 - `operator` and `admin` may generate annotated artifacts.
 - `operator` and `admin` may generate velocity-modified artifacts.
+- `operator` and `admin` may generate XYZ-adjusted artifacts.
 - all mutation requests require a session-bound CSRF token.
 - the service uses the unique `kuka_tools_session` cookie name.
 - generated programs are attachment-only downloads.

@@ -1,0 +1,11 @@
+&ACCESS RVP
+DEF XYZ_GOLDEN()
+LIN {X 1, Y 2, Z 3}
+;travel end
+$VEL.CP = 0.050000
+; LIN {X 999, Y 999, Z 999} documentation only
+LIN {Z 5e0, A 0, X -10.25, Y .5} C_DIS
+;travel start
+$VEL.CP = 0.100000
+LIN {X 20, Y 30, Z 10}
+END

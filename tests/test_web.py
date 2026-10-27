@@ -122,6 +122,37 @@ def test_velocity_download_requires_operator_confirmation(client) -> None:
     assert b"independent operator review" in response.data
 
 
+def test_xyz_download_is_audited_and_attachment_only(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/adjust-xyz",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "x_offset_mm": "1.25",
+            "y_offset_mm": "-2",
+            "z_offset_mm": "0.5",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=fixture_xyz.src"
+    )
+    assert response.headers["X-Changed-Line-Count"] == "2"
+    assert b"LIN {X 101.250, Y -2.000, Z 0.500}" in response.data
+    assert b"LIN {X 110, Y 0, Z 0}" in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "adjust_xyz"
+    assert '"changed_line_count":2' in row[1]
+
+
 def test_viewer_cannot_generate_artifact(client) -> None:
     login(client, username="viewer", password="view only")
     response = client.post(
@@ -130,6 +161,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     )
     assert response.status_code == 403
     assert client.post("/modify-velocity").status_code == 403
+    assert client.post("/adjust-xyz").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

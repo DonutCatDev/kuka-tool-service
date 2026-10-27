@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from io import BytesIO
 import json
+import math
 import os
 from pathlib import Path
 import secrets
@@ -34,8 +35,10 @@ from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .transforms import (
     MetadataRequest,
     VelocityRequest,
+    XYZRequest,
     build_annotated_source,
     build_velocity_source,
+    build_xyz_source,
 )
 
 
@@ -245,6 +248,47 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
+    @app.post("/adjust-xyz")
+    @require_role("operator")
+    def adjust_xyz_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that the coordinate changes require independent operator review."
+            )
+        filename, data = _uploaded_src()
+        adjustment = XYZRequest(
+            x_offset_mm=_bounded_float("x_offset_mm", -1000, 1000),
+            y_offset_mm=_bounded_float("y_offset_mm", -1000, 1000),
+            z_offset_mm=_bounded_float("z_offset_mm", -1000, 1000),
+        )
+        artifact = build_xyz_source(data, filename, adjustment)
+        _record_audit(
+            app,
+            operation="adjust_xyz",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "x_offset_mm": adjustment.x_offset_mm,
+                "y_offset_mm": adjustment.y_offset_mm,
+                "z_offset_mm": adjustment.z_offset_mm,
+                "changed_line_count": artifact.changed_line_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Changed-Line-Count"] = str(artifact.changed_line_count)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     @app.errorhandler(SourceValidationError)
     def source_error(error: SourceValidationError) -> tuple[str, int]:
         return render_template("index.html", error=str(error)), 400
@@ -362,6 +406,19 @@ def _positive_float(raw: str, label: str) -> float:
         raise SourceValidationError(f"{label} must be numeric.") from exc
     if not 0 < value <= 2:
         raise SourceValidationError(f"{label} must be greater than 0 and at most 2 m/s.")
+    return value
+
+
+def _bounded_float(name: str, minimum: float, maximum: float) -> float:
+    label = name.replace("_", " ").title()
+    try:
+        value = float(request.form.get(name, ""))
+    except ValueError as exc:
+        raise SourceValidationError(f"{label} must be numeric.") from exc
+    if not math.isfinite(value) or not minimum <= value <= maximum:
+        raise SourceValidationError(
+            f"{label} must be between {minimum:g} and {maximum:g}."
+        )
     return value
 
 

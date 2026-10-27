@@ -16,6 +16,26 @@
   </section>
 
   <section class="panel">
+    <h2>Adjust extrusion XYZ</h2>
+    <p>Apply millimetre offsets to complete Cartesian LIN commands inside extrusion regions. Setup and return-travel motions remain unchanged.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('adjust_xyz_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <div class="row">
+        <label>X offset (mm)<input type="number" name="x_offset_mm" value="0" min="-1000" max="1000" step="0.001" required></label>
+        <label>Y offset (mm)<input type="number" name="y_offset_mm" value="0" min="-1000" max="1000" step="0.001" required></label>
+        <label>Z offset (mm)<input type="number" name="z_offset_mm" value="0" min="-1000" max="1000" step="0.001" required></label>
+      </div>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand the generated coordinates require independent operator review before controller use.</label>
+      <button type="submit">Generate XYZ-adjusted SRC</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate transformed files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Annotate metadata</h2>
     <p>Generate a renamed download with managed metadata comments and an updated KRL DEF name.</p>
     {% if current_role in ('operator', 'admin') %}
