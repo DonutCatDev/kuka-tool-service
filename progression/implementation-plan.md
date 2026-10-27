@@ -183,6 +183,11 @@ painting, previews, and undo/redo remain future browser-interface work. Local
 evidence is recorded in
 [the mesh-edit validation report](../validation/2026-10-27-mesh-rectangle-edit-local.md).
 
+Grouped mesh editing now adds radial linear, quadratic, and cubic falloff for
+set/add/subtract/multiply operations. Browser-side click selection and undo/redo
+remain future interface work. Local evidence is recorded in
+[the falloff-edit validation report](../validation/2026-10-27-mesh-falloff-edit-local.md).
+
 SRC-to-mesh generation now provides the other half of the browser zone workflow:
 strict extrusion bounds become a complete baseline CSV grid that can feed mesh
 editing and compensation. Interactive path overlays remain future interface work.

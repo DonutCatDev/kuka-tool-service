@@ -163,6 +163,40 @@ def test_mesh_rectangle_edit_is_audited_and_attachment_only(client, app) -> None
     assert '"changed_cell_count":2' in row[1]
 
 
+def test_mesh_falloff_edit_is_audited_and_attachment_only(client, app) -> None:
+    login(client)
+    mesh = b",0,10,20\n0,0,0,0\n10,0,0,0\n20,0,0,0\n"
+    response = client.post(
+        "/edit-mesh-falloff",
+        data={
+            "csrf_token": csrf_token(client),
+            "mesh_file": (BytesIO(mesh), "mesh.csv"),
+            "operation": "add",
+            "edit_value": "2",
+            "center_x": "10",
+            "center_y": "10",
+            "radius_mm": "10.1",
+            "falloff": "linear",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=mesh_falloff.csv"
+    )
+    assert response.headers["X-Changed-Cell-Count"] == "5"
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "edit_mesh_falloff"
+    assert '"falloff":"linear"' in row[1]
+    assert '"changed_cell_count":5' in row[1]
+
+
 def test_mesh_generation_is_audited_and_attachment_only(client, app) -> None:
     login(client)
     response = client.post(
@@ -448,6 +482,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert client.post("/generate-probe-grid").status_code == 403
     assert client.post("/compensate-mesh-speed").status_code == 403
     assert client.post("/edit-mesh").status_code == 403
+    assert client.post("/edit-mesh-falloff").status_code == 403
     assert client.post("/generate-mesh").status_code == 403
 
 

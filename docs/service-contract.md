@@ -85,6 +85,23 @@ attachment with input/output hashes and changed-cell count headers. It requires
 operator authorization, CSRF protection, and explicit acknowledgement that the
 mesh needs independent review.
 
+## Grouped mesh editing with falloff
+
+Grouped editing selects measured mesh coordinates inside a positive-radius
+circle. The center and radius are expressed in the mesh's XY coordinate units.
+Linear, quadratic, and cubic weights follow the desktop convention:
+`1-d/r`, `1-(d/r)^2`, and `1-(d/r)^3`, clamped at zero. Boundary points with
+zero weight are not considered affected.
+
+Add and subtract scale their operand by the weight. Set blends from the current
+height toward the requested value; multiply blends from a factor of one toward
+the requested factor. Results are rounded to six decimal places. The entire
+operation fails if no mesh coordinates are affected, an affected cell is
+unmeasured, no value would change, or a result exceeds -10000 through 10000 mm.
+Output and browser security guarantees match rectangular mesh editing, and the
+audit record includes center, radius, curve, operation, value, and changed-cell
+count.
+
 ## Mesh generation from SRC
 
 Mesh generation extracts complete Cartesian `LIN` coordinates only from strict

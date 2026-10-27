@@ -96,6 +96,31 @@
   </section>
 
   <section class="panel">
+    <h2>Edit mesh with falloff</h2>
+    <p>Blend a grouped set, add, subtract, or multiply operation outward from a coordinate center using a bounded radial falloff.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('edit_mesh_falloff_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Mesh CSV<input type="file" name="mesh_file" accept=".csv,text/csv" required></label>
+      <div class="row">
+        <label>Operation<select name="operation"><option value="set">Set</option><option value="add">Add</option><option value="subtract">Subtract</option><option value="multiply">Multiply</option></select></label>
+        <label>Value<input type="number" name="edit_value" value="0" min="-10000" max="10000" step="0.000001" required></label>
+        <label>Falloff<select name="falloff"><option value="linear">Linear</option><option value="quadratic">Quadratic</option><option value="cubic">Cubic</option></select></label>
+      </div>
+      <div class="row">
+        <label>Center X<input type="number" name="center_x" value="0" min="-100000" max="100000" step="0.000001" required></label>
+        <label>Center Y<input type="number" name="center_y" value="0" min="-100000" max="100000" step="0.000001" required></label>
+        <label>Radius (mm)<input type="number" name="radius_mm" value="50" min="0.000001" max="100000" step="0.000001" required></label>
+      </div>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand falloff-edited mesh values require independent operator review before use.</label>
+      <button type="submit">Generate falloff-edited mesh CSV</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate edited mesh files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Generate mesh from SRC</h2>
     <p>Create a complete baseline mesh covering strict marker-classified extrusion bounds. The grid snaps outward to the selected spacing.</p>
     {% if current_role in ('operator', 'admin') %}

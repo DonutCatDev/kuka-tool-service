@@ -34,7 +34,12 @@ from werkzeug.utils import secure_filename
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
 from .mesh import MAX_MESH_BYTES, parse_mesh_csv
-from .mesh_editor import MeshEditRequest, build_edited_mesh
+from .mesh_editor import (
+    MeshEditRequest,
+    MeshFalloffRequest,
+    build_edited_mesh,
+    build_falloff_mesh,
+)
 from .mesh_generator import MeshGenerationRequest, build_mesh_from_source
 from .layer_inspector import inspect_layers
 from .path_overlay import build_path_overlay
@@ -270,6 +275,53 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 "x_max": edit.x_max,
                 "y_min": edit.y_min,
                 "y_max": edit.y_max,
+                "changed_cell_count": artifact.changed_cell_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Changed-Cell-Count"] = str(artifact.changed_cell_count)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.post("/edit-mesh-falloff")
+    @require_role("operator")
+    def edit_mesh_falloff_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that falloff-edited mesh values require independent operator review."
+            )
+        filename, data = _uploaded_file("mesh_file", ".csv", MAX_MESH_BYTES, "mesh CSV")
+        edit = MeshFalloffRequest(
+            operation=request.form.get("operation", ""),
+            value=_bounded_float("edit_value", -10_000, 10_000),
+            center_x=_bounded_float("center_x", -100_000, 100_000),
+            center_y=_bounded_float("center_y", -100_000, 100_000),
+            radius_mm=_bounded_float("radius_mm", 0.000001, 100_000),
+            falloff=request.form.get("falloff", ""),
+        )
+        artifact = build_falloff_mesh(data, filename, edit)
+        _record_audit(
+            app,
+            operation="edit_mesh_falloff",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "operation": edit.operation,
+                "value": edit.value,
+                "center_x": edit.center_x,
+                "center_y": edit.center_y,
+                "radius_mm": edit.radius_mm,
+                "falloff": edit.falloff,
                 "changed_cell_count": artifact.changed_cell_count,
             },
             result="completed",
