@@ -22,6 +22,8 @@ and
 [`../validation/2026-10-27-semaphore-readiness-local.md`](../validation/2026-10-27-semaphore-readiness-local.md)
 and
 [`../validation/2026-10-27-semaphore-readiness-live.md`](../validation/2026-10-27-semaphore-readiness-live.md)
+and
+[`../validation/2026-10-27-fleetlord-pilot-deployment.md`](../validation/2026-10-27-fleetlord-pilot-deployment.md)
 
 ## Goal
 
@@ -241,11 +243,12 @@ recorded in
 - [x] Implement endpoint mesh-speed compensation.
 - [x] Add guarded Fleetlord preflight and deployment automation.
 - [x] Add GET-only Semaphore registration/readiness inspection.
-- [ ] Perform a separately authorized Fleetlord pilot deployment.
+- [x] Perform a separately authorized Fleetlord pilot deployment.
 
 The automation is source-reviewed, covered by static safety-contract tests, and
 passes Ansible Core 2.19 syntax checks against the Fleet Control inventory.
-Docker/Compose validation, Semaphore preflight, and deployment remain pending.
+Local Docker/Compose validation remains unavailable. Semaphore preflight and
+Fleetlord deployment have passed at the reviewed revision.
 Local source evidence is recorded in
 [the deployment automation validation report](../validation/2026-10-27-deployment-automation-local.md).
 
@@ -268,3 +271,11 @@ checks passed and no existing stack was found. Review then identified that
 first-deployment port and static-address collision checks were absent; those
 guards are now required in both preflight and deployment before the pilot can
 proceed.
+
+Strengthened preflight task 556 passed at exact revision `d84bde1` with ports
+4700/4743 and address `172.30.0.23` available. Authorized deployment task 557
+then built and started the pilot at that revision. Health, direct-HTTP
+fail-closed behavior, HTTPS login, CSRF form presence, and response security
+headers passed. The one-use deployment template was deleted after success;
+read-only preflight template 313 remains. Authenticated operator workflow review
+and robot-side acceptance are still incomplete.

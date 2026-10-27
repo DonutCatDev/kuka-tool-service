@@ -71,15 +71,15 @@ review expectations, retention behavior, and the deployment acceptance checklist
 
 ## Deployment status
 
-Source implementation and local validation are separate from deployment. The
-service has not been deployed to Fleetlord and has not undergone operator or
-robot-side acceptance. Guarded Semaphore-oriented preflight and deployment
-playbooks are prepared under [`ansible/`](ansible/); running them still requires
-a separate authorization and reviewed release revision. A GET-only Semaphore
-readiness inspector is also available at
+The pilot is deployed on Fleetlord at revision `d84bde1` and is available at
+`https://fleetlord.local:4743`. Deployment health, authentication configuration,
+HTTP fail-closed behavior, HTTPS login, CSRF form presence, and security headers
+have passed. Authenticated operator workflows and robot-side acceptance remain
+pending. Guarded Semaphore automation is under [`ansible/`](ansible/). A GET-only
+Semaphore readiness inspector is also available at
 [`scripts/inspect_semaphore_preflight.py`](scripts/inspect_semaphore_preflight.py);
-it cannot create or launch tasks. The repository and guarded preflight template
-are now registered in Semaphore; the preflight has not been run.
+it cannot create or launch tasks. The reusable guarded preflight template remains
+registered; the one-use deployment template was removed after success.
 
 ## Reference source
 
