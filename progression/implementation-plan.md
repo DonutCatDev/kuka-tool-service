@@ -253,6 +253,11 @@ The existing Fleetlord dashboard template is not compatible with this
 independent repository. A GET-only inspector now verifies whether the repository
 and a guarded `ansible/preflight.yml` template have been registered without
 creating or launching any Semaphore task. Live registration and preflight
-execution remain pending. The first authenticated GET-only live inspection
+execution were pending at that stage. The first authenticated GET-only live inspection
 confirmed that Semaphore project 1 does not yet contain this repository or a
 matching preflight template; no task was launched.
+
+Repository 3 and guarded read-only preflight template 313 were subsequently
+registered after explicit authorization. Semaphore's project export confirms
+both argument and branch overrides are disabled. The template has not been run;
+preflight execution and deployment remain separate pending stages.

@@ -21,6 +21,9 @@ SEMAPHORE_URL = "http://fleetlord.local:3002"
 PROJECT_ID = 1
 EXPECTED_REPOSITORY = "https://github.com/DonutCatDev/kuka-tool-service.git"
 EXPECTED_PLAYBOOK = "ansible/preflight.yml"
+EXPECTED_REPOSITORY_KEY_ID = 2
+EXPECTED_INVENTORY_ID = 4
+EXPECTED_ENVIRONMENT_ID = 1
 
 
 def read_token(path: Path) -> str:
@@ -70,11 +73,21 @@ def inspect_readiness(
         get_json(f"/api/project/{project_id}/templates", token, opener=opener),
         "templates",
     )
+    backup = get_json(f"/api/project/{project_id}/backup", token, opener=opener)
+    if not isinstance(backup, dict):
+        raise RuntimeError("Semaphore returned an invalid project export response")
+    exported_templates = _items(backup.get("templates"), "exported templates")
 
-    repository_ids = {
-        item.get("id")
+    matching_repositories = [
+        item
         for item in repositories
         if str(item.get("git_url", "")).rstrip("/") == EXPECTED_REPOSITORY.rstrip("/")
+        and item.get("git_branch") == "main"
+        and item.get("ssh_key_id") == EXPECTED_REPOSITORY_KEY_ID
+    ]
+    repository_ids = {item.get("id") for item in matching_repositories}
+    repository_names = {
+        item.get("id"): item.get("name") for item in matching_repositories
     }
     inventory_ids = {item.get("id") for item in inventories}
     candidates = []
@@ -83,17 +96,33 @@ def inspect_readiness(
             continue
         if str(template.get("playbook", "")).lstrip("./") != EXPECTED_PLAYBOOK:
             continue
+        exports = [
+            item
+            for item in exported_templates
+            if item.get("name") == template.get("name")
+            and item.get("repository")
+            == repository_names.get(template.get("repository_id"))
+            and str(item.get("playbook", "")).lstrip("./") == EXPECTED_PLAYBOOK
+        ]
+        export = exports[0] if len(exports) == 1 else {}
         candidates.append(
             {
                 "id": template.get("id"),
                 "name": template.get("name"),
                 "inventory_id": template.get("inventory_id"),
                 "inventory_exists": template.get("inventory_id") in inventory_ids,
+                "expected_inventory": template.get("inventory_id")
+                == EXPECTED_INVENTORY_ID,
+                "expected_environment": template.get("environment_id")
+                == EXPECTED_ENVIRONMENT_ID,
                 "app": template.get("app"),
-                "arguments_override_disabled": template.get(
+                "arguments_fixed": export.get("arguments") == "[]",
+                "arguments_override_disabled": export.get(
                     "allow_override_args_in_task"
-                )
-                is False,
+                ) is False,
+                "branch_override_disabled": export.get(
+                    "allow_override_branch_in_task"
+                ) is False,
             }
         )
 
@@ -104,7 +133,11 @@ def inspect_readiness(
         "preflight_templates": candidates,
         "ready": any(
             candidate["inventory_exists"]
+            and candidate["expected_inventory"]
+            and candidate["expected_environment"]
+            and candidate["arguments_fixed"]
             and candidate["arguments_override_disabled"]
+            and candidate["branch_override_disabled"]
             and candidate["app"] == "ansible"
             for candidate in candidates
         ),

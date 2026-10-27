@@ -27,64 +27,101 @@ class Response:
         return json.dumps(self.payload).encode()
 
 
+def repository(repository_id: int = 9) -> dict[str, object]:
+    return {
+        "id": repository_id,
+        "name": "KUKA Tool Service",
+        "git_url": MODULE.EXPECTED_REPOSITORY,
+        "git_branch": "main",
+        "ssh_key_id": MODULE.EXPECTED_REPOSITORY_KEY_ID,
+    }
+
+
+def template(template_id: int = 300) -> dict[str, object]:
+    return {
+        "id": template_id,
+        "name": "KUKA Tool Service - read-only preflight",
+        "repository_id": 9,
+        "inventory_id": MODULE.EXPECTED_INVENTORY_ID,
+        "environment_id": MODULE.EXPECTED_ENVIRONMENT_ID,
+        "playbook": "ansible/preflight.yml",
+        "app": "ansible",
+    }
+
+
+def exported_template(**overrides: object) -> dict[str, object]:
+    value: dict[str, object] = {
+        "name": "KUKA Tool Service - read-only preflight",
+        "repository": "KUKA Tool Service",
+        "playbook": "ansible/preflight.yml",
+        "arguments": "[]",
+        "allow_override_args_in_task": False,
+        "allow_override_branch_in_task": False,
+    }
+    value.update(overrides)
+    return value
+
+
+def responses(
+    *,
+    repositories: list[dict[str, object]] | None = None,
+    templates: list[dict[str, object]] | None = None,
+    exports: list[dict[str, object]] | None = None,
+) -> list[object]:
+    return [
+        repositories if repositories is not None else [repository()],
+        [{"id": MODULE.EXPECTED_INVENTORY_ID, "name": "Fleetlord"}],
+        templates if templates is not None else [template()],
+        {"templates": exports if exports is not None else [exported_template()]},
+    ]
+
+
 def test_readiness_inspection_is_get_only_and_accepts_guarded_template() -> None:
     requests: list[Request] = []
-    responses = {
-        "/api/project/1/repositories": [
-            {"id": 9, "git_url": MODULE.EXPECTED_REPOSITORY}
-        ],
-        "/api/project/1/inventory": [{"id": 4, "name": "Fleetlord"}],
-        "/api/project/1/templates": [
-            {
-                "id": 300,
-                "name": "KUKA Tool Service - read-only preflight",
-                "repository_id": 9,
-                "inventory_id": 4,
-                "playbook": "ansible/preflight.yml",
-                "app": "ansible",
-                "allow_override_args_in_task": False,
-            }
-        ],
-    }
+    payloads = iter(responses())
 
     def opener(request: Request, timeout: int) -> Response:
         assert timeout == 10
         assert request.get_method() == "GET"
         assert request.data is None
         requests.append(request)
-        path = request.full_url.removeprefix(MODULE.SEMAPHORE_URL)
-        return Response(responses[path])
+        return Response(next(payloads))
 
     result = MODULE.inspect_readiness("secret", opener=opener)
 
     assert result["ready"] is True
     assert result["task_launched"] is False
-    assert len(requests) == 3
+    assert len(requests) == 4
+    assert requests[-1].full_url.endswith("/api/project/1/backup")
     assert all(request.headers["Authorization"] == "Bearer secret" for request in requests)
 
 
 def test_readiness_fails_closed_without_exact_repository_and_template() -> None:
-    responses = iter(
-        [
-            [{"id": 2, "git_url": "https://example.invalid/other.git"}],
-            [{"id": 4, "name": "Fleetlord"}],
-            [
+    payloads = iter(
+        responses(
+            repositories=[
                 {
-                    "id": 6,
-                    "repository_id": 2,
-                    "inventory_id": 4,
-                    "playbook": "playbooks/deploy-fleet-services.yml",
-                    "app": "ansible",
-                    "allow_override_args_in_task": False,
+                    "id": 2,
+                    "name": "Other",
+                    "git_url": "https://example.invalid/other.git",
+                    "git_branch": "main",
+                    "ssh_key_id": 2,
                 }
             ],
-        ]
+            templates=[
+                {
+                    **template(),
+                    "repository_id": 2,
+                    "playbook": "playbooks/deploy-fleet-services.yml",
+                }
+            ],
+            exports=[],
+        )
     )
 
-    def opener(request: Request, timeout: int) -> Response:
-        return Response(next(responses))
-
-    result = MODULE.inspect_readiness("secret", opener=opener)
+    result = MODULE.inspect_readiness(
+        "secret", opener=lambda request, timeout: Response(next(payloads))
+    )
 
     assert result["repository_registered"] is False
     assert result["preflight_templates"] == []
@@ -92,60 +129,48 @@ def test_readiness_fails_closed_without_exact_repository_and_template() -> None:
     assert result["task_launched"] is False
 
 
-def test_readiness_rejects_task_argument_overrides() -> None:
-    responses = iter(
-        [
-            [{"id": 9, "git_url": MODULE.EXPECTED_REPOSITORY}],
-            [{"id": 4}],
-            [
-                {
-                    "id": 300,
-                    "repository_id": 9,
-                    "inventory_id": 4,
-                    "playbook": "./ansible/preflight.yml",
-                    "app": "ansible",
-                    "allow_override_args_in_task": True,
-                }
-            ],
-        ]
-    )
+def test_readiness_rejects_task_or_branch_overrides() -> None:
+    for override in (
+        {"allow_override_args_in_task": True},
+        {"allow_override_branch_in_task": True},
+    ):
+        payloads = iter(responses(exports=[exported_template(**override)]))
+        result = MODULE.inspect_readiness(
+            "secret", opener=lambda request, timeout: Response(next(payloads))
+        )
+        assert result["ready"] is False
 
-    result = MODULE.inspect_readiness(
-        "secret", opener=lambda request, timeout: Response(next(responses))
-    )
 
-    assert result["preflight_templates"][0]["arguments_override_disabled"] is False
-    assert result["ready"] is False
+def test_readiness_rejects_wrong_inventory_environment_or_arguments() -> None:
+    variants = (
+        ({**template(), "inventory_id": 3}, exported_template()),
+        ({**template(), "environment_id": 2}, exported_template()),
+        (template(), exported_template(arguments='["--check"]')),
+    )
+    for candidate, exported in variants:
+        payloads = iter(responses(templates=[candidate], exports=[exported]))
+        result = MODULE.inspect_readiness(
+            "secret", opener=lambda request, timeout: Response(next(payloads))
+        )
+        assert result["ready"] is False
 
 
 def test_one_guarded_candidate_is_ready_when_an_obsolete_candidate_remains() -> None:
-    responses = iter(
-        [
-            [{"id": 9, "git_url": MODULE.EXPECTED_REPOSITORY}],
-            [{"id": 4}],
-            [
-                {
-                    "id": 299,
-                    "repository_id": 9,
-                    "inventory_id": 4,
-                    "playbook": "ansible/preflight.yml",
-                    "app": "ansible",
-                    "allow_override_args_in_task": True,
-                },
-                {
-                    "id": 300,
-                    "repository_id": 9,
-                    "inventory_id": 4,
-                    "playbook": "ansible/preflight.yml",
-                    "app": "ansible",
-                    "allow_override_args_in_task": False,
-                },
+    obsolete = {**template(299), "name": "Obsolete preflight"}
+    payloads = iter(
+        responses(
+            templates=[obsolete, template()],
+            exports=[
+                exported_template(
+                    name="Obsolete preflight", allow_override_args_in_task=True
+                ),
+                exported_template(),
             ],
-        ]
+        )
     )
 
     result = MODULE.inspect_readiness(
-        "secret", opener=lambda request, timeout: Response(next(responses))
+        "secret", opener=lambda request, timeout: Response(next(payloads))
     )
 
     assert result["ready"] is True

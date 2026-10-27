@@ -32,11 +32,14 @@ python3 scripts/inspect_semaphore_preflight.py \
   --token-file ~/.config/work_sv08/semaphore-dashboard.token
 ```
 
-The inspector makes only three authenticated GET requests. Exit status `0`
+The inspector makes only authenticated GET requests, including a project export
+needed because this Semaphore version omits override flags from normal template
+responses. Exit status `0`
 means it found a matching Ansible template with an existing inventory and
-argument overrides disabled; status `2` means registration is incomplete. It
-does not validate encrypted key selection, inventory contents, or branch/release
-pinning, which must still be reviewed in the Semaphore UI.
+the expected environment, fixed empty arguments, and argument/branch overrides
+disabled; status `2` means registration is incomplete. It does not validate
+encrypted key contents or inventory contents, which must still be reviewed in
+the Semaphore UI.
 
 The deployment template must set `kuka_tool_deployment_approved: true` and the
 exact lowercase Git commit selected for deployment. The playbook records that
