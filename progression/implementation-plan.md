@@ -20,6 +20,8 @@ and
 [`../validation/2026-10-27-mesh-speed-local.md`](../validation/2026-10-27-mesh-speed-local.md)
 and
 [`../validation/2026-10-27-semaphore-readiness-local.md`](../validation/2026-10-27-semaphore-readiness-local.md)
+and
+[`../validation/2026-10-27-semaphore-readiness-live.md`](../validation/2026-10-27-semaphore-readiness-live.md)
 
 ## Goal
 
@@ -251,4 +253,6 @@ The existing Fleetlord dashboard template is not compatible with this
 independent repository. A GET-only inspector now verifies whether the repository
 and a guarded `ansible/preflight.yml` template have been registered without
 creating or launching any Semaphore task. Live registration and preflight
-execution remain pending.
+execution remain pending. The first authenticated GET-only live inspection
+confirmed that Semaphore project 1 does not yet contain this repository or a
+matching preflight template; no task was launched.
