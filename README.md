@@ -75,7 +75,10 @@ Source implementation and local validation are separate from deployment. The
 service has not been deployed to Fleetlord and has not undergone operator or
 robot-side acceptance. Guarded Semaphore-oriented preflight and deployment
 playbooks are prepared under [`ansible/`](ansible/); running them still requires
-a separate authorization and reviewed release revision.
+a separate authorization and reviewed release revision. A GET-only Semaphore
+readiness inspector is also available at
+[`scripts/inspect_semaphore_preflight.py`](scripts/inspect_semaphore_preflight.py);
+it cannot create or launch tasks.
 
 ## Reference source
 

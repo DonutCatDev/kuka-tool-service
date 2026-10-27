@@ -15,6 +15,29 @@ inventory and encrypted Fleetlord SSH/root-become credentials:
    overrides and provide fixed reviewed variables based on
    `semaphore-vars.example.yml`.
 
+The current general Fleetlord dashboard template (project 1/template 6) is not
+suitable: it checks out the parent Fleet Control repository and runs a different
+playbook. Register this nested repository as its own Semaphore repository before
+creating either template. For the preflight template, select:
+
+- repository `https://github.com/DonutCatDev/kuka-tool-service.git`;
+- the established Fleetlord-only inventory and encrypted SSH/root-become keys;
+- application `Ansible` and playbook `ansible/preflight.yml`;
+- no task-time argument overrides.
+
+After registration, inspect those links without launching a task:
+
+```bash
+python3 scripts/inspect_semaphore_preflight.py \
+  --token-file ~/.config/work_sv08/semaphore-dashboard.token
+```
+
+The inspector makes only three authenticated GET requests. Exit status `0`
+means it found a matching Ansible template with an existing inventory and
+argument overrides disabled; status `2` means registration is incomplete. It
+does not validate encrypted key selection, inventory contents, or branch/release
+pinning, which must still be reviewed in the Semaphore UI.
+
 The deployment template must set `kuka_tool_deployment_approved: true` and the
 exact lowercase Git commit selected for deployment. The playbook records that
 revision at `/opt/stacks/kuka-tool-service/RELEASE`. Leaving approval false or

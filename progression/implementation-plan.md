@@ -18,6 +18,8 @@ and
 [`../validation/2026-10-27-mesh-parser-local.md`](../validation/2026-10-27-mesh-parser-local.md)
 and
 [`../validation/2026-10-27-mesh-speed-local.md`](../validation/2026-10-27-mesh-speed-local.md)
+and
+[`../validation/2026-10-27-semaphore-readiness-local.md`](../validation/2026-10-27-semaphore-readiness-local.md)
 
 ## Goal
 
@@ -236,6 +238,7 @@ recorded in
 - [x] Implement the mesh parsing/interpolation foundation.
 - [x] Implement endpoint mesh-speed compensation.
 - [x] Add guarded Fleetlord preflight and deployment automation.
+- [x] Add GET-only Semaphore registration/readiness inspection.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.
 
 The automation is source-reviewed, covered by static safety-contract tests, and
@@ -243,3 +246,9 @@ passes Ansible Core 2.19 syntax checks against the Fleet Control inventory.
 Docker/Compose validation, Semaphore preflight, and deployment remain pending.
 Local source evidence is recorded in
 [the deployment automation validation report](../validation/2026-10-27-deployment-automation-local.md).
+
+The existing Fleetlord dashboard template is not compatible with this
+independent repository. A GET-only inspector now verifies whether the repository
+and a guarded `ansible/preflight.yml` template have been registered without
+creating or launching any Semaphore task. Live registration and preflight
+execution remain pending.
