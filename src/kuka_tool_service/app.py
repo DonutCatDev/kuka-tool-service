@@ -36,6 +36,7 @@ from .merger import build_merged_source
 from .mesh import MAX_MESH_BYTES, parse_mesh_csv
 from .mesh_editor import MeshEditRequest, build_edited_mesh
 from .mesh_generator import MeshGenerationRequest, build_mesh_from_source
+from .layer_inspector import inspect_layers
 from .mesh_compensation import MeshCompensationRequest, build_mesh_compensated_source
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
@@ -170,6 +171,28 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             result="completed",
         )
         return render_template("inspection.html", report=report)
+
+    @app.post("/inspect-layers")
+    @require_role("viewer")
+    def inspect_layers_upload() -> str:
+        _require_csrf()
+        filename, data = _uploaded_src()
+        preview_index = _bounded_int("preview_layer", 0, 499_999)
+        report = inspect_layers(data, filename, preview_index)
+        _record_audit(
+            app,
+            operation="inspect_layers",
+            input_sha256=report.input_sha256,
+            output_sha256=None,
+            parameters={
+                "preview_layer": preview_index,
+                "layer_count": len(report.layers),
+                "preview_point_count": report.preview_point_count,
+                "rendered_point_count": report.rendered_point_count,
+            },
+            result="completed",
+        )
+        return render_template("layer_inspection.html", report=report)
 
     @app.post("/inspect-mesh")
     @require_role("viewer")

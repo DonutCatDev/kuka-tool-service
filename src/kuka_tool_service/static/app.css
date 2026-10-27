@@ -21,4 +21,7 @@ button.secondary { background: #526678; padding: .45rem .7rem; }
 code { overflow-wrap: anywhere; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; border-bottom: 1px solid #d8dee5; padding: .55rem; }
+.path-preview { width: 100%; max-height: 60vh; color: #1769aa; background: #f8fafc; border: 1px solid #d8dee5; }
+.layer-table { overflow-x: auto; }
+.selected-row { background: #eaf4fb; }
 @media (max-width: 600px) { .row { grid-template-columns: 1fr; } header { padding: .8rem 1rem; } }

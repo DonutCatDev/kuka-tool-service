@@ -189,6 +189,12 @@ editing and compensation. Interactive path overlays remain future interface work
 Local evidence is recorded in
 [the mesh-generation validation report](../validation/2026-10-27-src-mesh-generation-local.md).
 
+Read-only browser layer inspection now lists the same strict zero-based
+extrusion regions used by transformations and renders one bounded XY path
+preview. Mesh/path overlay and interactive point selection remain future work.
+Local evidence is recorded in
+[the layer-inspection validation report](../validation/2026-10-27-layer-inspection-local.md).
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.

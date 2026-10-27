@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Layer inspection · KUKA Tool Service{% endblock %}
+{% block content %}
+<h1>Layer inspection: {{ report.filename }}</h1>
+<p class="boundary">This preview is a two-dimensional parsing aid, not a robot-path simulation or physical-safety approval.</p>
+<div class="metrics">
+  <div><span>SHA-256</span><code>{{ report.input_sha256 }}</code></div>
+  <div><span>Extrusion layers</span><strong>{{ report.layers|length }}</strong></div>
+  <div><span>Preview layer</span><strong>{{ report.preview_layer.index }}</strong></div>
+  <div><span>Preview points</span><strong>{{ report.rendered_point_count }} rendered / {{ report.preview_point_count }} parsed</strong></div>
+</div>
+<section class="panel">
+  <h2>Layer {{ report.preview_layer.index }} XY path</h2>
+  <svg class="path-preview" viewBox="0 0 800 500" role="img" aria-label="XY polyline preview for extrusion layer {{ report.preview_layer.index }}">
+    <polyline points="{{ report.svg_points }}" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+  </svg>
+</section>
+<section class="panel layer-table">
+  <h2>Strict extrusion regions</h2>
+  <table>
+    <thead><tr><th>Index</th><th>Lines</th><th>LINs</th><th>Z min–max</th><th>X min–max</th><th>Y min–max</th><th>Path mm</th></tr></thead>
+    <tbody>{% for layer in report.layers %}<tr{% if layer.index == report.preview_layer.index %} class="selected-row"{% endif %}><td>{{ layer.index }}</td><td>{{ layer.start_line }}–{{ layer.end_line }}</td><td>{{ layer.motion_count }}</td><td>{{ "%.3f"|format(layer.z_min) }}–{{ "%.3f"|format(layer.z_max) }}</td><td>{{ "%.3f"|format(layer.x_min) }}–{{ "%.3f"|format(layer.x_max) }}</td><td>{{ "%.3f"|format(layer.y_min) }}–{{ "%.3f"|format(layer.y_max) }}</td><td>{{ "%.1f"|format(layer.path_distance_mm) }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endblock %}

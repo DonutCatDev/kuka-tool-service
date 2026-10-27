@@ -29,6 +29,7 @@ def test_health_reports_no_controller_access(client) -> None:
 def test_tools_require_login(client) -> None:
     assert client.get("/").status_code == 302
     assert client.post("/inspect").status_code == 302
+    assert client.post("/inspect-layers").status_code == 302
     assert client.post("/annotate").status_code == 302
 
 
@@ -52,6 +53,31 @@ def test_inspection_browser_flow_records_audit(client, app) -> None:
             "SELECT username, operation, output_sha256 FROM audit_events"
         ).fetchone()
     assert row == ("operator", "inspect", None)
+
+
+def test_layer_inspection_renders_preview_and_audits(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/inspect-layers",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "preview_layer": "1",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Layer inspection: fixture.src" in response.data
+    assert b"Layer 1 XY path" in response.data
+    assert b'points="400.00,250.00"' in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "inspect_layers"
+    assert '"preview_layer":1' in row[1]
 
 
 def test_mesh_inspection_reports_missing_cells_and_audits(client, app) -> None:

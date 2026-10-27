@@ -102,6 +102,23 @@ compensation. Browser generation requires operator authorization, CSRF
 protection, and explicit independent-review acknowledgement; input/output hashes
 and grid dimensions are audited.
 
+## Extrusion-layer inspection and preview
+
+Layer inspection uses zero-based indices assigned by strict alternating
+`;travel end` and `;travel start` markers, matching layer-selective XYZ
+adjustment. Every completed region must contain at least one complete Cartesian
+`LIN`; duplicate, incomplete, reversed, ambiguous, or unterminated regions reject
+the request rather than being displayed heuristically.
+
+The result lists source line boundaries, motion count, XYZ bounds, and geometric
+LIN-to-LIN path distance for every extrusion layer. One requested layer is shown
+as a server-generated XY SVG polyline. Rendering is bounded to 5,000
+deterministically sampled points while the page reports both parsed and rendered
+counts. This two-dimensional view omits Z shape, orientation, blending, travel,
+process state, timing, and robot geometry; it is an index-selection and parsing
+aid, not a path simulator or safety review. The upload is not retained, and the
+authenticated read-only request is audited by source hash.
+
 ## XYZ adjustment
 
 XYZ adjustment applies a uniform millimetre offset to complete Cartesian `LIN`
