@@ -153,7 +153,30 @@ including outside the grid. It never silently rewrites missing cells.
 
 The reusable speed calculation follows the historical zone convention while
 requiring explicit bounded parameters. This release exposes mesh inspection in
-the browser but does not yet generate a mesh-compensated SRC program.
+the browser and supports the endpoint compensation mode below.
+
+## Endpoint mesh-speed compensation
+
+The first mesh-speed transformation inserts `$VEL.CP` assignments before
+complete extrusion-region `LIN` commands when the bilinearly interpolated mesh
+height at that command's target XY changes the active speed zone. It follows the
+reference formula: round the height deviation into zones, scale the base speed
+by the configured fraction per zone, apply a tolerance, and clamp the result to
+0.001–0.1 m/s. Program speeds above 0.1 m/s are left unchanged.
+
+This mode does not split a LIN move where it crosses a mesh-zone boundary. It
+uses only the target endpoint, preserves every motion coordinate and travel
+region, and reparses the output to verify its LIN count. Missing interpolation
+corners and coordinates outside the mesh use the explicit baseline height and
+are counted in the audit record. A request producing no speed changes is
+rejected rather than returning an indistinguishable artifact.
+The compensation pass has a 15-second processing deadline in addition to the
+existing input and output parsing limits.
+
+The source, mesh, and output SHA-256 hashes are returned and audited. The result
+requires independent review because endpoint compensation is not equivalent to
+the historical boundary-splitting mode and neither method establishes a
+physically safe process.
 
 ## Authorization
 
@@ -164,6 +187,7 @@ the browser but does not yet generate a mesh-compensated SRC program.
 - `operator` and `admin` may generate XYZ-adjusted artifacts.
 - `operator` and `admin` may generate merged artifacts.
 - `operator` and `admin` may generate probe-grid artifacts.
+- `operator` and `admin` may generate mesh-speed artifacts.
 - all mutation requests require a session-bound CSRF token.
 - the service uses the unique `kuka_tools_session` cookie name.
 - generated programs are attachment-only downloads.

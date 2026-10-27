@@ -16,6 +16,28 @@
   </section>
 
   <section class="panel">
+    <h2>Compensate extrusion speed from mesh</h2>
+    <p>Insert endpoint-derived extrusion velocities using a validated mesh. Coordinates and travel motions remain unchanged.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('compensate_mesh_speed_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <label>Measured mesh CSV<input type="file" name="mesh_file" accept=".csv,text/csv" required></label>
+      <div class="row">
+        <label>Baseline height (mm)<input type="number" name="baseline_height_mm" value="0" min="-10000" max="10000" step="0.001" required></label>
+        <label>Zone step (mm)<input type="number" name="zone_step_mm" value="1" min="0.000001" max="100" step="0.001" required></label>
+        <label>Speed step fraction<input type="number" name="speed_step_fraction" value="0.02" min="-1" max="1" step="0.001" required></label>
+        <label>Speed tolerance (m/s)<input type="number" name="speed_tolerance_mps" value="0.0001" min="0" max="0.1" step="0.0001" required></label>
+      </div>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand mesh-derived speed changes require independent operator review and physical validation.</label>
+      <button type="submit">Generate mesh-speed SRC</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate transformed files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Inspect mesh CSV</h2>
     <p>Validate axes, dimensions, measured heights, and missing cells before using a mesh for speed compensation.</p>
     <form method="post" action="{{ url_for('inspect_mesh_upload') }}" enctype="multipart/form-data">

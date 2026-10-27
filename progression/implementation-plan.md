@@ -16,6 +16,8 @@ and
 [`../validation/2026-10-27-probe-grid-local.md`](../validation/2026-10-27-probe-grid-local.md)
 and
 [`../validation/2026-10-27-mesh-parser-local.md`](../validation/2026-10-27-mesh-parser-local.md)
+and
+[`../validation/2026-10-27-mesh-speed-local.md`](../validation/2026-10-27-mesh-speed-local.md)
 
 ## Goal
 
@@ -168,8 +170,11 @@ validation remain separate engineering work.
 
 Strict mesh CSV inspection and dependency-free bilinear lookup are implemented
 as the parsing foundation for mesh-based speed compensation. Missing cells are
-reported rather than silently replaced. SRC speed rewriting remains gated on a
-separate transformation contract and golden corpus.
+reported rather than silently replaced.
+
+Endpoint mesh-speed compensation is implemented with golden coverage and output
+reinspection. It preserves geometry and does not split moves at zone boundaries.
+Historical boundary-splitting behavior remains a separately gated enhancement.
 
 ## Initial repository work
 
@@ -192,5 +197,6 @@ separate transformation contract and golden corpus.
 - [x] Implement strict alternating path merge.
 - [x] Implement bounded review-only probe-grid generation.
 - [x] Implement the mesh parsing/interpolation foundation.
+- [x] Implement endpoint mesh-speed compensation.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

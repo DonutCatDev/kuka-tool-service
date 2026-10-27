@@ -11,6 +11,7 @@ from conftest import csrf_token, login, sample_src
 
 MERGE_FIXTURES = Path(__file__).parent / "fixtures" / "merge"
 MESH_FIXTURE = Path(__file__).parent / "fixtures" / "mesh" / "valid.csv"
+MESH_SPEED_FIXTURES = Path(__file__).parent / "fixtures" / "mesh_compensation"
 
 
 def test_health_reports_no_controller_access(client) -> None:
@@ -72,6 +73,38 @@ def test_mesh_inspection_reports_missing_cells_and_audits(client, app) -> None:
             "SELECT operation, output_sha256 FROM audit_events"
         ).fetchone()
     assert row == ("inspect_mesh", None)
+
+
+def test_mesh_speed_download_records_both_hashes_and_audit(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/compensate-mesh-speed",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO((Path(__file__).parent / "fixtures" / "probe" / "input.src").read_bytes()), "fixture.src"),
+            "mesh_file": (BytesIO((MESH_SPEED_FIXTURES / "mesh.csv").read_bytes()), "mesh.csv"),
+            "baseline_height_mm": "0",
+            "zone_step_mm": "1",
+            "speed_step_fraction": "0.1",
+            "speed_tolerance_mps": "0.0001",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.data == (MESH_SPEED_FIXTURES / "expected.src").read_bytes()
+    assert response.headers["X-Inserted-Speed-Count"] == "2"
+    assert len(response.headers["X-Source-SHA256"]) == 64
+    assert len(response.headers["X-Mesh-SHA256"]) == 64
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, input_sha256, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "compensate_mesh_speed"
+    assert row[1] == response.headers["X-Source-SHA256"]
+    assert response.headers["X-Mesh-SHA256"] in row[2]
 
 
 def test_annotation_download_has_hash_provenance(client) -> None:
@@ -262,6 +295,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert client.post("/adjust-xyz").status_code == 403
     assert client.post("/merge-paths").status_code == 403
     assert client.post("/generate-probe-grid").status_code == 403
+    assert client.post("/compensate-mesh-speed").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

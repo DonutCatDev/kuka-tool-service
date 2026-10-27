@@ -34,6 +34,7 @@ from werkzeug.utils import secure_filename
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
 from .mesh import MAX_MESH_BYTES, parse_mesh_csv
+from .mesh_compensation import MeshCompensationRequest, build_mesh_compensated_source
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
     MetadataRequest,
@@ -183,6 +184,56 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             result="completed",
         )
         return render_template("mesh_inspection.html", filename=filename, mesh=mesh)
+
+    @app.post("/compensate-mesh-speed")
+    @require_role("operator")
+    def compensate_mesh_speed_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that mesh-derived speed changes require independent operator review."
+            )
+        source_name, source_data = _uploaded_src()
+        _, mesh_data = _uploaded_file("mesh_file", ".csv", MAX_MESH_BYTES, "mesh CSV")
+        parameters = MeshCompensationRequest(
+            baseline_height_mm=_bounded_float("baseline_height_mm", -10_000, 10_000),
+            zone_step_mm=_bounded_float("zone_step_mm", 0.000001, 100),
+            speed_step_fraction=_bounded_float("speed_step_fraction", -1, 1),
+            speed_tolerance_mps=_bounded_float("speed_tolerance_mps", 0, 0.1),
+        )
+        artifact = build_mesh_compensated_source(
+            source_data, mesh_data, source_name, parameters
+        )
+        _record_audit(
+            app,
+            operation="compensate_mesh_speed",
+            input_sha256=artifact.source_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "mesh_sha256": artifact.mesh_sha256,
+                "baseline_height_mm": parameters.baseline_height_mm,
+                "zone_step_mm": parameters.zone_step_mm,
+                "speed_step_fraction": parameters.speed_step_fraction,
+                "speed_tolerance_mps": parameters.speed_tolerance_mps,
+                "inserted_speed_count": artifact.inserted_speed_count,
+                "compensated_motion_count": artifact.compensated_motion_count,
+                "baseline_fallback_count": artifact.baseline_fallback_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Source-SHA256"] = artifact.source_sha256
+        response.headers["X-Mesh-SHA256"] = artifact.mesh_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Inserted-Speed-Count"] = str(artifact.inserted_speed_count)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @app.post("/annotate")
     @require_role("operator")

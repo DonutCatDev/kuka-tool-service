@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass
 import csv
 from hashlib import sha256
@@ -32,12 +33,17 @@ class MeshGrid:
     def height_at(self, x: float, y: float, baseline: float) -> float:
         """Return bilinear height or the explicit baseline outside/through gaps."""
 
+        return self.height_lookup(x, y, baseline)[0]
+
+    def height_lookup(self, x: float, y: float, baseline: float) -> tuple[float, bool]:
+        """Return height and whether explicit baseline fallback was required."""
+
         if not all(math.isfinite(value) for value in (x, y, baseline)):
             raise SourceValidationError("Mesh lookup values must be finite.")
         x_index = _bracket(self.x_values, x)
         y_index = _bracket(self.y_values, y)
         if x_index is None or y_index is None:
-            return baseline
+            return baseline, True
         x0, x1 = self.x_values[x_index], self.x_values[x_index + 1]
         y0, y1 = self.y_values[y_index], self.y_values[y_index + 1]
         corners = (
@@ -47,7 +53,7 @@ class MeshGrid:
             self.z_values[x_index + 1][y_index + 1],
         )
         if any(value is None for value in corners):
-            return baseline
+            return baseline, True
         z00, z10, z01, z11 = (float(value) for value in corners)
         tx = (x - x0) / (x1 - x0)
         ty = (y - y0) / (y1 - y0)
@@ -56,7 +62,7 @@ class MeshGrid:
             + z10 * tx * (1 - ty)
             + z01 * (1 - tx) * ty
             + z11 * tx * ty
-        )
+        ), False
 
 
 def parse_mesh_csv(data: bytes) -> MeshGrid:
@@ -169,7 +175,4 @@ def _bracket(values: tuple[float, ...], target: float) -> int | None:
         return None
     if target == values[-1]:
         return len(values) - 2
-    for index in range(len(values) - 1):
-        if values[index] <= target <= values[index + 1]:
-            return index
-    return None
+    return bisect_right(values, target) - 1
