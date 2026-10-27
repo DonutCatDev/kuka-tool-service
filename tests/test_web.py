@@ -30,6 +30,7 @@ def test_tools_require_login(client) -> None:
     assert client.get("/").status_code == 302
     assert client.post("/inspect").status_code == 302
     assert client.post("/inspect-layers").status_code == 302
+    assert client.post("/preview-path-mesh").status_code == 302
     assert client.post("/annotate").status_code == 302
 
 
@@ -78,6 +79,34 @@ def test_layer_inspection_renders_preview_and_audits(client, app) -> None:
     assert row is not None
     assert row[0] == "inspect_layers"
     assert '"preview_layer":1' in row[1]
+
+
+def test_path_mesh_overlay_renders_and_audits_both_hashes(client, app) -> None:
+    login(client)
+    source = b"DEF PATH()\n;travel end\nLIN {X 0, Y 0, Z 5}\nLIN {X 10, Y 10, Z 5}\n;travel start\nEND\n"
+    mesh = b",0,10\n0,1,2\n10,3,4\n"
+    response = client.post(
+        "/preview-path-mesh",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(source), "path.src"),
+            "mesh_file": (BytesIO(mesh), "mesh.csv"),
+            "preview_layer": "0",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Path/mesh preview" in response.data
+    assert b'points="30.00,570.00 870.00,30.00"' in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, input_sha256, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "preview_path_mesh"
+    assert len(row[1]) == 64
+    assert '"mesh_sha256":"' in row[2]
 
 
 def test_mesh_inspection_reports_missing_cells_and_audits(client, app) -> None:

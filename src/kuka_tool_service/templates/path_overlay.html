@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Path/mesh preview · KUKA Tool Service{% endblock %}
+{% block content %}
+<h1>Path/mesh preview</h1>
+<p class="boundary">This coordinate overlay is a parsing aid, not a robot simulation, collision check, compensation approval, or physical-safety review.</p>
+<div class="metrics">
+  <div><span>SRC / layer</span><strong>{{ report.source_filename }} / {{ report.layer.index }}</strong></div>
+  <div><span>Mesh</span><strong>{{ report.mesh_filename }}</strong></div>
+  <div><span>Mesh samples</span><strong>{{ report.mesh_point_count }} total / {{ report.missing_count }} missing</strong></div>
+  <div><span>Path points</span><strong>{{ report.rendered_path_point_count }} rendered / {{ report.path_point_count }} parsed</strong></div>
+  <div><span>Path outside mesh</span><strong>{{ report.outside_mesh_count }}</strong></div>
+</div>
+<section class="panel">
+  <h2>Layer {{ report.layer.index }} XY overlay</h2>
+  <svg class="path-preview" viewBox="0 0 900 600" role="img" aria-label="Layer path over measured mesh coordinates">
+    <g class="mesh-samples">{% for point in report.mesh_points %}<circle cx="{{ '%.2f'|format(point.cx) }}" cy="{{ '%.2f'|format(point.cy) }}" r="5" fill="{{ point.color }}"><title>X {{ point.x }}, Y {{ point.y }}, height {{ point.height if point.height is not none else 'missing' }}</title></circle>{% endfor %}</g>
+    <polyline points="{{ report.svg_path_points }}" fill="none" stroke="#111827" stroke-width="3" vector-effect="non-scaling-stroke" />
+  </svg>
+  <p><span class="legend-swatch missing-swatch"></span> Missing mesh sample. Measured samples run from blue (minimum) through red (maximum); the dark line is the selected extrusion path.</p>
+</section>
+<section class="panel">
+  <h2>Coordinate coverage</h2>
+  <table><tr><th>Axis</th><th>Minimum</th><th>Maximum</th></tr><tr><td>X</td><td>{{ report.coordinate_bounds.min_x }}</td><td>{{ report.coordinate_bounds.max_x }}</td></tr><tr><td>Y</td><td>{{ report.coordinate_bounds.min_y }}</td><td>{{ report.coordinate_bounds.max_y }}</td></tr></table>
+</section>
+{% endblock %}

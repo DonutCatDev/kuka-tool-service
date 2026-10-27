@@ -41,6 +41,8 @@ class LayerInspection:
     preview_layer: LayerSummary
     preview_point_count: int
     rendered_point_count: int
+    preview_points: tuple[tuple[float, float, float], ...]
+    rendered_preview_points: tuple[tuple[float, float, float], ...]
     svg_points: str
 
 
@@ -126,6 +128,8 @@ def inspect_layers(data: bytes, filename: str, preview_index: int) -> LayerInspe
         preview_layer=summaries[preview_index],
         preview_point_count=len(preview_points),
         rendered_point_count=len(sampled),
+        preview_points=tuple(preview_points),
+        rendered_preview_points=tuple(sampled),
         svg_points=_svg_points(sampled),
     )
 

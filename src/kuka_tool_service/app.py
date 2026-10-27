@@ -37,6 +37,7 @@ from .mesh import MAX_MESH_BYTES, parse_mesh_csv
 from .mesh_editor import MeshEditRequest, build_edited_mesh
 from .mesh_generator import MeshGenerationRequest, build_mesh_from_source
 from .layer_inspector import inspect_layers
+from .path_overlay import build_path_overlay
 from .mesh_compensation import MeshCompensationRequest, build_mesh_compensated_source
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
@@ -193,6 +194,35 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             result="completed",
         )
         return render_template("layer_inspection.html", report=report)
+
+    @app.post("/preview-path-mesh")
+    @require_role("viewer")
+    def preview_path_mesh_upload() -> str:
+        _require_csrf()
+        source_name, source_data = _uploaded_src()
+        mesh_name, mesh_data = _uploaded_file(
+            "mesh_file", ".csv", MAX_MESH_BYTES, "mesh CSV"
+        )
+        layer_index = _bounded_int("preview_layer", 0, 499_999)
+        report = build_path_overlay(
+            source_data, source_name, mesh_data, mesh_name, layer_index
+        )
+        _record_audit(
+            app,
+            operation="preview_path_mesh",
+            input_sha256=report.source_sha256,
+            output_sha256=None,
+            parameters={
+                "mesh_sha256": report.mesh_sha256,
+                "preview_layer": layer_index,
+                "mesh_point_count": report.mesh_point_count,
+                "path_point_count": report.path_point_count,
+                "rendered_path_point_count": report.rendered_path_point_count,
+                "outside_mesh_count": report.outside_mesh_count,
+            },
+            result="completed",
+        )
+        return render_template("path_overlay.html", report=report)
 
     @app.post("/inspect-mesh")
     @require_role("viewer")

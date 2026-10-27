@@ -195,6 +195,12 @@ preview. Mesh/path overlay and interactive point selection remain future work.
 Local evidence is recorded in
 [the layer-inspection validation report](../validation/2026-10-27-layer-inspection-local.md).
 
+Read-only mesh/path overlay is now implemented with shared XY scaling, measured
+height colors, explicit missing samples, full parsed coverage accounting, and
+bounded SVG/HTML rendering. Interactive point selection remains future work.
+Local evidence is recorded in
+[the overlay validation report](../validation/2026-10-27-path-mesh-overlay-local.md).
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.

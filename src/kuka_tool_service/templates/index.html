@@ -27,6 +27,18 @@
   </section>
 
   <section class="panel">
+    <h2>Preview path over mesh</h2>
+    <p>Overlay one strict zero-based extrusion layer on measured mesh samples in a shared XY coordinate view.</p>
+    <form method="post" action="{{ url_for('preview_path_mesh_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <label>Mesh CSV<input type="file" name="mesh_file" accept=".csv,text/csv" required></label>
+      <label>Preview layer (zero-based)<input type="number" name="preview_layer" value="0" min="0" max="499999" step="1" required></label>
+      <button type="submit">Preview overlay</button>
+    </form>
+  </section>
+
+  <section class="panel">
     <h2>Compensate extrusion speed from mesh</h2>
     <p>Insert endpoint-derived extrusion velocities using a validated mesh. Coordinates and travel motions remain unchanged.</p>
     {% if current_role in ('operator', 'admin') %}

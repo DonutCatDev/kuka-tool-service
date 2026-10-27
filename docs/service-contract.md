@@ -119,6 +119,21 @@ process state, timing, and robot geometry; it is an index-selection and parsing
 aid, not a path simulator or safety review. The upload is not retained, and the
 authenticated read-only request is audited by source hash.
 
+## Path and mesh overlay
+
+The read-only overlay combines one strict zero-based extrusion layer with one
+strictly parsed mesh CSV in a shared XY coordinate system. Every mesh coordinate
+is rendered as a height-colored sample; missing values use an explicit neutral
+color. The selected extrusion path is drawn over those samples, and the report
+counts all parsed path points outside the mesh's coordinate bounds.
+
+The SVG path retains the layer inspector's deterministic 5,000-point rendering
+limit, while coverage bounds and outside-mesh counts use every parsed point. Mesh
+rendering is limited to 10,000 samples; larger valid meshes must be inspected
+numerically rather than expanded into an unbounded HTML response. Both source
+and mesh hashes are audited. The view does not interpolate compensation, model
+robot geometry, or establish process or physical safety.
+
 ## XYZ adjustment
 
 XYZ adjustment applies a uniform millimetre offset to complete Cartesian `LIN`
