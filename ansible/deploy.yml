@@ -49,6 +49,43 @@
       ansible.builtin.command:
         argv: [docker, network, inspect, fleet-services]
       changed_when: false
+      register: kuka_tool_network_inspect
+
+    - name: Inspect an existing stack definition
+      ansible.builtin.stat:
+        path: /opt/stacks/kuka-tool-service/compose.yaml
+      register: kuka_tool_existing_compose
+
+    - name: Inspect reserved listener ports
+      ansible.builtin.command:
+        argv: [ss, -H, -ltn, "sport = :4700 or sport = :4743"]
+      changed_when: false
+      register: kuka_tool_reserved_ports
+      when: not kuka_tool_existing_compose.stat.exists
+
+    - name: Derive occupied service-network addresses
+      ansible.builtin.set_fact:
+        kuka_tool_occupied_addresses: >-
+          {{
+            (
+              (kuka_tool_network_inspect.stdout | from_json | first).Containers
+              | default({})
+              | dict2items
+              | map(attribute='value.IPv4Address')
+              | map('regex_replace', '/.*$', '')
+              | list
+            )
+          }}
+
+    - name: Require unoccupied pilot ports and address
+      ansible.builtin.assert:
+        that:
+          - kuka_tool_reserved_ports.stdout | trim == ''
+          - "'172.30.0.23' not in kuka_tool_occupied_addresses"
+        fail_msg: >-
+          Refusing first deployment because port 4700/4743 or
+          fleet-services address 172.30.0.23 is already occupied.
+      when: not kuka_tool_existing_compose.stat.exists
 
   tasks:
     - name: Ensure stack and application-data directories exist

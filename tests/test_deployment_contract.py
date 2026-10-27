@@ -24,6 +24,14 @@ def test_preflight_contains_no_mutating_deployment_tasks() -> None:
     assert "deployment_performed: false" in PREFLIGHT
 
 
+def test_playbooks_guard_reserved_ports_and_service_address() -> None:
+    for playbook in (PREFLIGHT, DEPLOY):
+        assert "sport = :4700 or sport = :4743" in playbook
+        assert "172.30.0.23" in playbook
+        assert "kuka_tool_occupied_addresses" in playbook
+        assert "when: not kuka_tool_existing_compose.stat.exists" in playbook
+
+
 def test_deployment_requires_approval_revision_and_protected_secret() -> None:
     assert "kuka_tool_deployment_approved" in DEPLOY
     assert "kuka_tool_release_revision" in DEPLOY

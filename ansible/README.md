@@ -53,6 +53,8 @@ The read-only preflight:
 - restricts itself to the `fleetlord` inventory host at `fleetlord.local`;
 - requires the established root-owned mode-0600 Production Desk users secret;
 - verifies Docker, Docker Compose, and the external `fleet-services` network;
+- refuses a first deployment when ports 4700/4743 or static service address
+  `172.30.0.23` are occupied;
 - validates the existing deployed Compose file when one is present;
 - performs no deployment or controller access.
 

@@ -261,3 +261,10 @@ Repository 3 and guarded read-only preflight template 313 were subsequently
 registered after explicit authorization. Semaphore's project export confirms
 both argument and branch overrides are disabled. The template has not been run;
 preflight execution and deployment remain separate pending stages.
+
+Semaphore task 555 successfully ran the first read-only preflight at revision
+`fdc8543` with zero changed or failed tasks. Secret, Docker, Compose, and network
+checks passed and no existing stack was found. Review then identified that
+first-deployment port and static-address collision checks were absent; those
+guards are now required in both preflight and deployment before the pilot can
+proceed.

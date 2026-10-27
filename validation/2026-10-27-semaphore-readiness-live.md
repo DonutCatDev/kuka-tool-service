@@ -46,3 +46,17 @@ and template 313, with the exact inventory and environment links confirmed. It
 also reported `task_launched: false`. Repository-wide validation passed with 106
 tests and both Ansible syntax checks; Docker remained unavailable for Compose
 validation.
+
+## First preflight execution
+
+Authorized Semaphore task 555 ran template 313 at exact revision `fdc8543` and
+completed successfully. It reported the Fleetlord target, protected users
+secret, Docker, Compose, and `fleet-services` network ready; no existing KUKA
+Tool Service stack was present. The play recap was `ok=8`, `changed=0`,
+`failed=0`, and the task explicitly reported `deployment_performed: false` and
+`controller_access_requested: false`.
+
+Reviewing that result identified a missing first-deployment collision check.
+The next source revision adds read-only checks for ports 4700/4743 and static
+address `172.30.0.23` to both preflight and deployment. That revision must be
+pushed and pass a fresh preflight before the authorized deployment proceeds.
