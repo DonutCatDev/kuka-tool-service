@@ -108,6 +108,37 @@ def test_mesh_rectangle_edit_is_audited_and_attachment_only(client, app) -> None
     assert '"changed_cell_count":2' in row[1]
 
 
+def test_mesh_generation_is_audited_and_attachment_only(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/generate-mesh",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "spacing_x_mm": "50",
+            "spacing_y_mm": "50",
+            "margin_mm": "0",
+            "baseline_height_mm": "7.5",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=fixture_mesh.csv"
+    )
+    assert response.headers["X-Mesh-Cell-Count"] == "8"
+    assert response.data.startswith(b",0,50\n100,7.5,7.5\n")
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "generate_mesh"
+    assert '"cell_count":8' in row[1]
+
+
 def test_mesh_speed_download_records_both_hashes_and_audit(client, app) -> None:
     login(client)
     response = client.post(
@@ -362,6 +393,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
     assert client.post("/generate-probe-grid").status_code == 403
     assert client.post("/compensate-mesh-speed").status_code == 403
     assert client.post("/edit-mesh").status_code == 403
+    assert client.post("/generate-mesh").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

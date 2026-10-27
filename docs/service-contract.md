@@ -85,6 +85,23 @@ attachment with input/output hashes and changed-cell count headers. It requires
 operator authorization, CSRF protection, and explicit acknowledgement that the
 mesh needs independent review.
 
+## Mesh generation from SRC
+
+Mesh generation extracts complete Cartesian `LIN` coordinates only from strict
+marker-classified extrusion regions. Ambiguous, reversed, or incomplete travel
+markers and incomplete extrusion motions reject the operation. The extrusion XY
+bounds are expanded by a non-negative margin and snapped outward to independent
+X and Y spacing intervals. A zero-width source axis is expanded by one interval
+so the result remains a valid interpolatable mesh.
+
+Every generated cell receives the requested baseline height. Spacing is limited
+to 0.1 through 1000 mm, and the shared mesh parser's axis, cell-count, byte, and
+numeric limits apply. The generated UTF-8/LF CSV is reparsed before download and
+is compatible with mesh inspection, rectangular editing, and mesh-speed
+compensation. Browser generation requires operator authorization, CSRF
+protection, and explicit independent-review acknowledgement; input/output hashes
+and grid dimensions are audited.
+
 ## XYZ adjustment
 
 XYZ adjustment applies a uniform millimetre offset to complete Cartesian `LIN`

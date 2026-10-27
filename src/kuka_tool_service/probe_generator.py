@@ -51,7 +51,7 @@ def build_probe_source(data: bytes, filename: str, request: ProbeRequest) -> Pro
     inspect_source(data, filename=filename)
     if document.newline_label == "mixed":
         raise SourceValidationError("Probe generation does not accept mixed newline styles.")
-    points, template = _extrusion_points(document.lines, filename)
+    points, template = extract_extrusion_points(document.lines, filename)
     xs = [point[0] for point in points]
     ys = [point[1] for point in points]
     center_x = (min(xs) + max(xs)) / 2
@@ -122,9 +122,10 @@ def build_probe_source(data: bytes, filename: str, request: ProbeRequest) -> Pro
     )
 
 
-def _extrusion_points(
+def extract_extrusion_points(
     lines: tuple[str, ...], filename: str
 ) -> tuple[list[tuple[float, float, float]], str]:
+    """Return strict marker-classified extrusion points and a LIN template."""
     phase = "initial"
     expected = "end"
     markers = 0

@@ -183,6 +183,12 @@ painting, previews, and undo/redo remain future browser-interface work. Local
 evidence is recorded in
 [the mesh-edit validation report](../validation/2026-10-27-mesh-rectangle-edit-local.md).
 
+SRC-to-mesh generation now provides the other half of the browser zone workflow:
+strict extrusion bounds become a complete baseline CSV grid that can feed mesh
+editing and compensation. Interactive path overlays remain future interface work.
+Local evidence is recorded in
+[the mesh-generation validation report](../validation/2026-10-27-src-mesh-generation-local.md).
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.

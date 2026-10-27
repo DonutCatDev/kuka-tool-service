@@ -73,6 +73,27 @@
   </section>
 
   <section class="panel">
+    <h2>Generate mesh from SRC</h2>
+    <p>Create a complete baseline mesh covering strict marker-classified extrusion bounds. The grid snaps outward to the selected spacing.</p>
+    {% if current_role in ('operator', 'admin') %}
+    <form method="post" action="{{ url_for('generate_mesh_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>SRC file<input type="file" name="src_file" accept=".src" required></label>
+      <div class="row">
+        <label>X spacing (mm)<input type="number" name="spacing_x_mm" value="50" min="0.1" max="1000" step="0.1" required></label>
+        <label>Y spacing (mm)<input type="number" name="spacing_y_mm" value="50" min="0.1" max="1000" step="0.1" required></label>
+        <label>Margin (mm)<input type="number" name="margin_mm" value="0" min="0" max="10000" step="0.1" required></label>
+        <label>Baseline height (mm)<input type="number" name="baseline_height_mm" value="0" min="-10000" max="10000" step="0.000001" required></label>
+      </div>
+      <label><input type="checkbox" name="confirm_review" value="yes" required> I understand the generated baseline mesh requires independent operator review before use.</label>
+      <button type="submit">Generate mesh CSV</button>
+    </form>
+    {% else %}
+      <p>Operator access is required to generate mesh files.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <h2>Generate probe grid</h2>
     <p>Derive an XY grid from extrusion bounds and generate a review-only probing program without copying source process-control logic.</p>
     {% if current_role in ('operator', 'admin') %}

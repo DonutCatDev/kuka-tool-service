@@ -35,6 +35,7 @@ from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
 from .mesh import MAX_MESH_BYTES, parse_mesh_csv
 from .mesh_editor import MeshEditRequest, build_edited_mesh
+from .mesh_generator import MeshGenerationRequest, build_mesh_from_source
 from .mesh_compensation import MeshCompensationRequest, build_mesh_compensated_source
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
@@ -230,6 +231,52 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         response.headers["X-Input-SHA256"] = artifact.input_sha256
         response.headers["X-Output-SHA256"] = artifact.output_sha256
         response.headers["X-Changed-Cell-Count"] = str(artifact.changed_cell_count)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.post("/generate-mesh")
+    @require_role("operator")
+    def generate_mesh_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that the generated mesh requires independent operator review."
+            )
+        filename, data = _uploaded_src()
+        parameters = MeshGenerationRequest(
+            spacing_x_mm=_bounded_float("spacing_x_mm", 0.1, 1000),
+            spacing_y_mm=_bounded_float("spacing_y_mm", 0.1, 1000),
+            margin_mm=_bounded_float("margin_mm", 0, 10_000),
+            baseline_height_mm=_bounded_float("baseline_height_mm", -10_000, 10_000),
+        )
+        artifact = build_mesh_from_source(data, filename, parameters)
+        _record_audit(
+            app,
+            operation="generate_mesh",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "spacing_x_mm": parameters.spacing_x_mm,
+                "spacing_y_mm": parameters.spacing_y_mm,
+                "margin_mm": parameters.margin_mm,
+                "baseline_height_mm": parameters.baseline_height_mm,
+                "x_count": artifact.x_count,
+                "y_count": artifact.y_count,
+                "cell_count": artifact.cell_count,
+                "bounds": artifact.bounds,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Mesh-Cell-Count"] = str(artifact.cell_count)
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
