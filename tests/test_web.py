@@ -56,6 +56,49 @@ def test_inspection_browser_flow_records_audit(client, app) -> None:
     assert row == ("operator", "inspect", None)
 
 
+def test_audit_retention_prunes_by_age_and_row_cap(client, app) -> None:
+    app.config.update(AUDIT_RETENTION_DAYS=30, AUDIT_MAX_ROWS=3)
+    assert client.get("/healthz").status_code == 200
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        for created_at, operation in (
+            ("2000-01-01T00:00:00+00:00", "expired"),
+            ("2999-01-01T00:00:00+00:00", "recent_1"),
+            ("2999-01-02T00:00:00+00:00", "recent_2"),
+            ("2999-01-03T00:00:00+00:00", "recent_3"),
+        ):
+            connection.execute(
+                """
+                INSERT INTO audit_events (
+                    created_at, username, operation, input_sha256,
+                    output_sha256, parameters_json, result
+                ) VALUES (?, 'operator', ?, ?, NULL, '{}', 'completed')
+                """,
+                (created_at, operation, "0" * 64),
+            )
+        connection.commit()
+
+    login(client)
+    response = client.post(
+        "/inspect",
+        data={
+            "csrf_token": csrf_token(client),
+            "default_speed_mps": "0.06",
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        operations = [
+            row[0]
+            for row in connection.execute(
+                "SELECT operation FROM audit_events ORDER BY id"
+            ).fetchall()
+        ]
+    assert operations == ["recent_2", "recent_3", "inspect"]
+
+
 def test_layer_inspection_renders_preview_and_audits(client, app) -> None:
     login(client)
     response = client.post(
@@ -518,3 +561,13 @@ def test_unconfigured_authentication_degrades_health(tmp_path) -> None:
 
     assert response.status_code == 503
     assert response.json["authentication_configured"] is False
+
+
+def test_invalid_audit_retention_degrades_health(app) -> None:
+    app.config["AUDIT_RETENTION_DAYS"] = "0"
+
+    response = app.test_client().get("/healthz")
+
+    assert response.status_code == 503
+    assert response.json["status"] == "degraded"
+    assert "audit retention days" in response.json["error"]

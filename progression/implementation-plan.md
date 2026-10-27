@@ -206,6 +206,13 @@ bounded SVG/HTML rendering. Interactive point selection remains future work.
 Local evidence is recorded in
 [the overlay validation report](../validation/2026-10-27-path-mesh-overlay-local.md).
 
+Phase 3 retention is now explicit: uploads and generated downloads remain
+memory-only, while audit rows are pruned on write by configurable age and row
+caps. Operator workflow and deployment acceptance are documented in
+[`../docs/operator-guide.md`](../docs/operator-guide.md). Local evidence is
+recorded in
+[the retention validation report](../validation/2026-10-27-audit-retention-local.md).
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.

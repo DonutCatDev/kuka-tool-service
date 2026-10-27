@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from io import BytesIO
 import json
@@ -76,6 +76,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         DATABASE_PATH=os.getenv(
             "KUKA_TOOL_DATABASE_PATH", "/data/kuka-tool-service.sqlite3"
         ),
+        AUDIT_RETENTION_DAYS=os.getenv("KUKA_TOOL_AUDIT_RETENTION_DAYS", "365"),
+        AUDIT_MAX_ROWS=os.getenv("KUKA_TOOL_AUDIT_MAX_ROWS", "100000"),
         REQUIRE_HTTPS=os.getenv("KUKA_TOOL_REQUIRE_HTTPS", "true").lower() == "true",
         PUBLIC_HTTPS_URL=os.getenv(
             "KUKA_TOOL_PUBLIC_HTTPS_URL", "https://fleetlord.local:4743"
@@ -831,6 +833,7 @@ def _database(app: Flask) -> Iterator[sqlite3.Connection]:
 
 
 def _initialize_database(app: Flask) -> None:
+    _audit_retention_settings(app)
     with _database(app) as connection:
         connection.execute(
             """
@@ -858,6 +861,8 @@ def _record_audit(
     result: str,
 ) -> None:
     _initialize_database(app)
+    retention_days, max_rows = _audit_retention_settings(app)
+    created_at = datetime.now(timezone.utc)
     with _database(app) as connection:
         connection.execute(
             """
@@ -867,7 +872,7 @@ def _record_audit(
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                datetime.now(timezone.utc).isoformat(),
+                created_at.isoformat(),
                 str(session["username"]),
                 operation,
                 input_sha256,
@@ -876,3 +881,36 @@ def _record_audit(
                 result,
             ),
         )
+        _prune_audit(connection, created_at, retention_days, max_rows)
+
+
+def _audit_retention_settings(app: Flask) -> tuple[int, int]:
+    try:
+        retention_days = int(app.config["AUDIT_RETENTION_DAYS"])
+        max_rows = int(app.config["AUDIT_MAX_ROWS"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("audit retention settings must be integers") from exc
+    if not 1 <= retention_days <= 3_650:
+        raise ValueError("audit retention days must be between 1 and 3650")
+    if not 1 <= max_rows <= 1_000_000:
+        raise ValueError("audit maximum rows must be between 1 and 1000000")
+    return retention_days, max_rows
+
+
+def _prune_audit(
+    connection: sqlite3.Connection,
+    now: datetime,
+    retention_days: int,
+    max_rows: int,
+) -> None:
+    cutoff = (now - timedelta(days=retention_days)).isoformat()
+    connection.execute("DELETE FROM audit_events WHERE created_at < ?", (cutoff,))
+    connection.execute(
+        """
+        DELETE FROM audit_events
+        WHERE id NOT IN (
+            SELECT id FROM audit_events ORDER BY id DESC LIMIT ?
+        )
+        """,
+        (max_rows,),
+    )

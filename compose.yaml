@@ -11,6 +11,8 @@ services:
       KUKA_TOOL_DATABASE_PATH: /data/kuka-tool-service.sqlite3
       KUKA_TOOL_REQUIRE_HTTPS: "true"
       KUKA_TOOL_PUBLIC_HTTPS_URL: https://fleetlord.local:4743
+      KUKA_TOOL_AUDIT_RETENTION_DAYS: "365"
+      KUKA_TOOL_AUDIT_MAX_ROWS: "100000"
     secrets:
       - production_desk_users
     volumes:

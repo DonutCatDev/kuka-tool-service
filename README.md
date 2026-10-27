@@ -10,15 +10,12 @@ to KUKA controllers, deploy programs, start production, or modify robot state.
 
 ## Delivery scope
 
-The first browser slice provides:
-
-1. SRC inspection and idealized path-time estimation.
-2. Metadata annotation and controlled output naming.
-3. Marker-aware velocity analysis and controlled modification.
-
-Path merging, XYZ adjustment, probing-path generation, mesh-based speed
-compensation, and browser-based mesh editing are later phases gated by golden
-regression coverage and operator review.
+The implemented browser service covers SRC inspection and layer visualization,
+metadata and velocity modification, layer-selective XYZ adjustment, alternating
+path merge, review-only probe-grid generation, mesh generation and inspection,
+rectangular and falloff mesh editing, path/mesh overlay, and endpoint mesh-speed
+compensation. Each mutation is independently validated and remains an offline
+download requiring operator review.
 
 See [`progression/implementation-plan.md`](progression/implementation-plan.md)
 for the delivery plan and
@@ -38,9 +35,12 @@ The first browser-service slice provides:
 - operator-only alternating merge of structurally compatible path programs;
 - operator-only generation of bounded, review-only probing grids;
 - authenticated inspection and strict validation of mesh CSV grids;
+- read-only layer and path/mesh SVG previews;
+- operator-only baseline mesh generation and rectangular/falloff mesh editing;
 - operator-only endpoint mesh-speed compensation with explicit fallback counts;
 - source/output SHA-256 provenance and SQLite audit records;
 - encoding and newline preservation for generated artifacts;
+- age- and row-bounded audit retention;
 - a container and local Compose definition.
 
 The service has no controller access or automatic program propagation. See
@@ -58,6 +58,9 @@ PYTHON=.venv/bin/python scripts/check.sh
 The application requires a users JSON file using the existing Production Desk
 secret schema. Point `KUKA_TOOL_USERS_PATH` at a local non-committed fixture and
 set `KUKA_TOOL_REQUIRE_HTTPS=false` only for local development.
+
+See [`docs/operator-guide.md`](docs/operator-guide.md) for workflow boundaries,
+review expectations, retention behavior, and the deployment acceptance checklist.
 
 ## Deployment status
 
