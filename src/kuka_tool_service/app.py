@@ -327,10 +327,20 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 "Confirm that the coordinate changes require independent operator review."
             )
         filename, data = _uploaded_src()
+        layer_mode = request.form.get("layer_mode", "all")
+        if layer_mode == "all":
+            first_layer = last_layer = None
+        elif layer_mode == "range":
+            first_layer = _bounded_int("first_layer", 0, 499_999)
+            last_layer = _bounded_int("last_layer", 0, 499_999)
+        else:
+            raise SourceValidationError("Layer mode must be all or range.")
         adjustment = XYZRequest(
             x_offset_mm=_bounded_float("x_offset_mm", -1000, 1000),
             y_offset_mm=_bounded_float("y_offset_mm", -1000, 1000),
             z_offset_mm=_bounded_float("z_offset_mm", -1000, 1000),
+            first_layer=first_layer,
+            last_layer=last_layer,
         )
         artifact = build_xyz_source(data, filename, adjustment)
         _record_audit(
@@ -342,6 +352,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 "x_offset_mm": adjustment.x_offset_mm,
                 "y_offset_mm": adjustment.y_offset_mm,
                 "z_offset_mm": adjustment.z_offset_mm,
+                "layer_mode": layer_mode,
+                "first_layer": adjustment.first_layer,
+                "last_layer": adjustment.last_layer,
                 "changed_line_count": artifact.changed_line_count,
             },
             result="completed",

@@ -151,6 +151,28 @@ def test_xyz_adjustment_preserves_cp1252_crlf() -> None:
     assert artifact.data.endswith(b"\r\n")
 
 
+def test_xyz_adjustment_can_target_inclusive_layer_range() -> None:
+    source = ("\n".join(SAMPLE_LINES) + "\n").encode()
+    artifact = build_xyz_source(
+        source,
+        "sample.src",
+        XYZRequest(1, -2, 0.5, first_layer=1, last_layer=1),
+    )
+
+    assert artifact.filename == "sample_xyz_L0001-L0001.src"
+    assert artifact.changed_line_count == 1
+    assert b"LIN {X 100, Y 0, Z 0}" in artifact.data
+    assert b"LIN {Z 10.500, X 211.000, Y -2.000}" in artifact.data
+
+
+def test_xyz_adjustment_rejects_invalid_or_out_of_range_layer_selection() -> None:
+    source = ("\n".join(SAMPLE_LINES) + "\n").encode()
+    with pytest.raises(SourceValidationError, match="first not greater than last"):
+        build_xyz_source(source, "bad.src", XYZRequest(1, 0, 0, 2, 1))
+    with pytest.raises(SourceValidationError, match="contains 2 extrusion layers"):
+        build_xyz_source(source, "bad.src", XYZRequest(1, 0, 0, 2, 2))
+
+
 def test_xyz_adjustment_rejects_incomplete_extrusion_lin() -> None:
     source = b"DEF BAD()\n;travel end\nLIN {X 1, Y 2}\n;travel start\nEND\n"
     with pytest.raises(SourceValidationError, match="exactly one X, Y, and Z"):

@@ -212,6 +212,38 @@ def test_xyz_download_is_audited_and_attachment_only(client, app) -> None:
     assert '"changed_line_count":2' in row[1]
 
 
+def test_xyz_download_accepts_inclusive_layer_range(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/adjust-xyz",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "x_offset_mm": "1.25",
+            "y_offset_mm": "-2",
+            "z_offset_mm": "0.5",
+            "layer_mode": "range",
+            "first_layer": "1",
+            "last_layer": "1",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert "fixture_xyz_L0001-L0001.src" in response.headers["Content-Disposition"]
+    assert response.headers["X-Changed-Line-Count"] == "1"
+    assert b"LIN {X 100, Y 0, Z 0}" in response.data
+    assert b"LIN {Z 10.500, X 211.250, Y -2.000}" in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        parameters = connection.execute(
+            "SELECT parameters_json FROM audit_events"
+        ).fetchone()[0]
+    assert '"layer_mode":"range"' in parameters
+    assert '"first_layer":1' in parameters
+    assert '"last_layer":1' in parameters
+
+
 def test_path_merge_records_both_inputs_and_returns_attachment(client, app) -> None:
     login(client)
     response = client.post(

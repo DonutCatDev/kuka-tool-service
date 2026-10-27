@@ -73,6 +73,8 @@ class XYZRequest:
     x_offset_mm: float
     y_offset_mm: float
     z_offset_mm: float
+    first_layer: int | None = None
+    last_layer: int | None = None
 
 
 def build_annotated_source(data: bytes, request: MetadataRequest) -> GeneratedArtifact:
@@ -232,6 +234,7 @@ def build_xyz_source(data: bytes, filename: str, request: XYZRequest) -> Generat
     phase = "initial"
     expected_marker = "end"
     marker_count = 0
+    layer_index = -1
     changed_count = 0
     offsets = {
         "X": request.x_offset_mm,
@@ -252,6 +255,7 @@ def build_xyz_source(data: bytes, filename: str, request: XYZRequest) -> Generat
                     f"Unexpected travel-end marker on line {index + 1}; markers must alternate."
                 )
             phase = "extrusion"
+            layer_index += 1
             expected_marker = "start"
             marker_count += 1
         elif has_start:
@@ -264,7 +268,10 @@ def build_xyz_source(data: bytes, filename: str, request: XYZRequest) -> Generat
             marker_count += 1
 
         motion = _LIN_BODY.search(line)
-        if motion is None or phase != "extrusion":
+        selected = request.first_layer is None or (
+            request.first_layer <= layer_index <= request.last_layer
+        )
+        if motion is None or phase != "extrusion" or not selected:
             continue
         coordinates = list(_COORD_VALUE.finditer(motion.group("body")))
         axes = [match.group("axis").upper() for match in coordinates]
@@ -291,8 +298,18 @@ def build_xyz_source(data: bytes, filename: str, request: XYZRequest) -> Generat
         raise SourceValidationError(
             "XYZ adjustment requires alternating travel-end and travel-start markers."
         )
+    layer_count = layer_index + 1
+    if request.last_layer is not None and request.last_layer >= layer_count:
+        raise SourceValidationError(
+            f"Selected layer {request.last_layer} is out of range; "
+            f"the source contains {layer_count} extrusion layers (0-{layer_count - 1})."
+        )
     if changed_count == 0:
-        raise SourceValidationError("No complete extrusion LIN command was found to adjust.")
+        if request.first_layer is None:
+            raise SourceValidationError("No complete extrusion LIN command was found to adjust.")
+        raise SourceValidationError(
+            "No complete extrusion LIN command was found in the selected layer range."
+        )
 
     output_text = document.newline.join(lines)
     if document.terminal_newline:
@@ -301,8 +318,13 @@ def build_xyz_source(data: bytes, filename: str, request: XYZRequest) -> Generat
     safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", filename.rsplit(".", 1)[0]).strip("._")
     if not safe_stem:
         safe_stem = "program"
+    layer_suffix = (
+        ""
+        if request.first_layer is None
+        else f"_L{request.first_layer:04d}-L{request.last_layer:04d}"
+    )
     return GeneratedArtifact(
-        filename=f"{safe_stem}_xyz.src",
+        filename=f"{safe_stem}_xyz{layer_suffix}.src",
         data=output_data,
         input_sha256=document.sha256,
         output_sha256=sha256(output_data).hexdigest(),
@@ -345,3 +367,12 @@ def _validate_xyz_request(request: XYZRequest) -> None:
         raise SourceValidationError("XYZ offsets must be between -1000 and 1000 mm.")
     if all(value == 0 for value in values):
         raise SourceValidationError("At least one XYZ offset must be non-zero.")
+    if (request.first_layer is None) != (request.last_layer is None):
+        raise SourceValidationError("First and last layer must be provided together.")
+    if request.first_layer is not None:
+        if not isinstance(request.first_layer, int) or not isinstance(request.last_layer, int):
+            raise SourceValidationError("Layer indices must be integers.")
+        if not 0 <= request.first_layer <= request.last_layer <= 499_999:
+            raise SourceValidationError(
+                "Layer range must use inclusive indices from 0 through 499999, with first not greater than last."
+            )

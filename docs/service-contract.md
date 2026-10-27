@@ -75,6 +75,12 @@ state machine as velocity modification: extrusion begins at `;travel end`,
 return travel begins at `;travel start`, and marker types must begin with travel
 end and alternate.
 
+The operator may target all extrusion layers or an inclusive layer range.
+Layer indices are zero-based and are assigned only when a valid `;travel end`
+marker begins an extrusion region. Both range endpoints are required; reversed,
+negative, or out-of-range selections reject the entire operation. Range output
+names include both selected indices so the narrower scope remains visible.
+
 Coordinate fields may appear in any order and may use signs, leading decimals,
 or scientific notation. Every targeted `LIN` must contain exactly one X, one Y,
 and one Z value. Duplicate or incomplete fields reject the whole operation. The

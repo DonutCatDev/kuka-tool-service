@@ -153,9 +153,10 @@ and fails closed on ambiguous marker sequences. Deployment and operator review
 remain separate acceptance stages.
 
 XYZ adjustment is implemented for all complete Cartesian LIN commands in
-marker-classified extrusion regions. Setup, return-travel, and wipe motions are
-preserved. Individual-layer selection and graphical preview remain future
-browser-interface work.
+marker-classified extrusion regions, with optional inclusive zero-based layer
+selection. Setup, return-travel, and wipe motions are preserved. Graphical
+preview remains future browser-interface work. Local evidence is recorded in
+[the layer-selection validation report](../validation/2026-10-27-layer-selective-xyz-local.md).
 
 Alternating path merge is implemented for equal-count, Z-aligned programs with
 compatible setup and shutdown scaffolding. It preserves original block content
