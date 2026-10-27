@@ -1,0 +1,11 @@
+&ACCESS RVP
+DEF VELOCITY_GOLDEN()
+$VEL.CP = 0.200000
+PTP {X 0, Y 0, Z 5}
+;travel end
+  $VEL.CP=5e-2 ; extrusion
+LIN {X 10, Y 0, Z 5}
+;travel start
+$vel.cp = .1 ; return
+LIN {X 0, Y 0, Z 5}
+END

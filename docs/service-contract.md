@@ -45,10 +45,33 @@ terminal-newline state, and all unmanaged lines. Managed metadata immediately
 following `DEF` is replaced rather than duplicated. Downloads include input and
 output SHA-256 values in response headers.
 
+## Velocity modification
+
+Velocity modification follows the historical LFAM marker convention while
+using a stricter state machine than the desktop utility:
+
+- `;travel end` opens an extrusion region;
+- `;travel start` opens a return-travel region;
+- the two marker types must begin with `;travel end` and alternate;
+- `$VEL.CP` assignments before the first marker are setup commands and remain
+  unchanged;
+- assignments inside extrusion and travel regions are replaced independently;
+- numeric values may use signs, leading decimals, or scientific notation;
+- whitespace, comments, commands, coordinates, and unrelated lines remain
+  unchanged.
+
+Both target speeds must be greater than zero and no more than 2 m/s. Files with
+missing, duplicate, reversed, or same-line ambiguous travel markers are rejected
+rather than classified heuristically. The output is an offline review artifact;
+the service does not determine whether a requested speed is physically safe.
+The browser requires an explicit acknowledgement of independent operator review
+before generating the download.
+
 ## Authorization
 
 - `viewer`, `operator`, and `admin` may inspect files.
 - `operator` and `admin` may generate annotated artifacts.
+- `operator` and `admin` may generate velocity-modified artifacts.
 - all mutation requests require a session-bound CSRF token.
 - the service uses the unique `kuka_tools_session` cookie name.
 - generated programs are attachment-only downloads.

@@ -31,7 +31,12 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
-from .transforms import MetadataRequest, build_annotated_source
+from .transforms import (
+    MetadataRequest,
+    VelocityRequest,
+    build_annotated_source,
+    build_velocity_source,
+)
 
 
 ROLES = {"viewer": 0, "operator": 1, "admin": 2}
@@ -194,6 +199,49 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         )
         response.headers["X-Input-SHA256"] = artifact.input_sha256
         response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @app.post("/modify-velocity")
+    @require_role("operator")
+    def modify_velocity_upload() -> Response:
+        _require_csrf()
+        if request.form.get("confirm_review") != "yes":
+            raise SourceValidationError(
+                "Confirm that the requested velocities require independent operator review."
+            )
+        filename, data = _uploaded_src()
+        velocity = VelocityRequest(
+            extrusion_mps=_positive_float(
+                request.form.get("extrusion_mps", ""), "Extrusion velocity"
+            ),
+            travel_mps=_positive_float(
+                request.form.get("travel_mps", ""), "Travel velocity"
+            ),
+        )
+        artifact = build_velocity_source(data, filename, velocity)
+        _record_audit(
+            app,
+            operation="modify_velocity",
+            input_sha256=artifact.input_sha256,
+            output_sha256=artifact.output_sha256,
+            parameters={
+                "extrusion_mps": velocity.extrusion_mps,
+                "travel_mps": velocity.travel_mps,
+                "changed_line_count": artifact.changed_line_count,
+            },
+            result="completed",
+        )
+        response = send_file(
+            BytesIO(artifact.data),
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=artifact.filename,
+            max_age=0,
+        )
+        response.headers["X-Input-SHA256"] = artifact.input_sha256
+        response.headers["X-Output-SHA256"] = artifact.output_sha256
+        response.headers["X-Changed-Line-Count"] = str(artifact.changed_line_count)
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 

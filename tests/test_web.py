@@ -75,6 +75,53 @@ def test_annotation_download_has_hash_provenance(client) -> None:
     assert b"; Cell Number = CELL04\r\n" in response.data
 
 
+def test_velocity_download_is_classified_audited_and_attachment_only(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/modify-velocity",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "extrusion_mps": "0.042",
+            "travel_mps": "0.125",
+            "confirm_review": "yes",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith(
+        "attachment; filename=fixture_velocity.src"
+    )
+    assert response.headers["X-Changed-Line-Count"] == "4"
+    assert response.data.count(b"$VEL.CP = 0.042000") == 2
+    assert response.data.count(b"$VEL.CP = 0.125000") == 2
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, parameters_json FROM audit_events"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "modify_velocity"
+    assert '"changed_line_count":4' in row[1]
+
+
+def test_velocity_download_requires_operator_confirmation(client) -> None:
+    login(client)
+    response = client.post(
+        "/modify-velocity",
+        data={
+            "csrf_token": csrf_token(client),
+            "src_file": (BytesIO(sample_src()), "fixture.src"),
+            "extrusion_mps": "0.042",
+            "travel_mps": "0.125",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert b"independent operator review" in response.data
+
+
 def test_viewer_cannot_generate_artifact(client) -> None:
     login(client, username="viewer", password="view only")
     response = client.post(
@@ -82,6 +129,7 @@ def test_viewer_cannot_generate_artifact(client) -> None:
         data={"csrf_token": csrf_token(client)},
     )
     assert response.status_code == 403
+    assert client.post("/modify-velocity").status_code == 403
 
 
 def test_csrf_is_required(client) -> None:

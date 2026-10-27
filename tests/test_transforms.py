@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from pathlib import Path
 
 import pytest
 
 from kuka_tool_service.parser import SourceValidationError
-from kuka_tool_service.transforms import MetadataRequest, build_annotated_source
+from kuka_tool_service.transforms import (
+    MetadataRequest,
+    VelocityRequest,
+    build_annotated_source,
+    build_velocity_source,
+)
 
 from conftest import SAMPLE_LINES
+
+
+FIXTURES = Path(__file__).parent / "fixtures" / "velocity"
 
 
 def request() -> MetadataRequest:
@@ -52,3 +61,60 @@ def test_annotation_requires_valid_comment_fields() -> None:
     bad = MetadataRequest(**{**request().__dict__, "part_link": "ok; injected"})
     with pytest.raises(SourceValidationError, match="control characters"):
         build_annotated_source(("\n".join(SAMPLE_LINES) + "\n").encode(), bad)
+
+
+def test_velocity_modification_preserves_context_and_initial_commands() -> None:
+    source = ("\r\n".join(SAMPLE_LINES) + "\r\n").encode("cp1252")
+    artifact = build_velocity_source(
+        source,
+        "Cell 04 sample.src",
+        VelocityRequest(extrusion_mps=0.042, travel_mps=0.125),
+    )
+    decoded = artifact.data.decode("cp1252")
+
+    assert artifact.filename == "Cell_04_sample_velocity.src"
+    assert artifact.changed_line_count == 4
+    assert "$VEL.CP = 0.200000\r\n" in decoded
+    assert "$VEL.CP = 0.100000\r\nLIN {X 0, Y 0, Z 0" in decoded
+    assert decoded.count("$VEL.CP = 0.042000") == 2
+    assert decoded.count("$VEL.CP = 0.125000") == 2
+    assert artifact.data.endswith(b"\r\n")
+
+
+def test_velocity_modification_matches_golden_bytes() -> None:
+    source = (FIXTURES / "input.src").read_bytes()
+    expected = (FIXTURES / "expected.src").read_bytes()
+
+    artifact = build_velocity_source(
+        source,
+        "input.src",
+        VelocityRequest(extrusion_mps=0.042, travel_mps=0.125),
+    )
+
+    assert artifact.data == expected
+
+
+@pytest.mark.parametrize(
+    "lines, message",
+    [
+        (("DEF BAD()", "$VEL.CP = 0.1", "END"), "requires alternating"),
+        (
+            (
+                "DEF BAD()",
+                ";travel end",
+                "$VEL.CP = 0.1",
+                ";travel end",
+                "$VEL.CP = 0.2",
+                "END",
+            ),
+            "markers must alternate",
+        ),
+    ],
+)
+def test_velocity_modification_rejects_ambiguous_markers(lines, message) -> None:
+    with pytest.raises(SourceValidationError, match=message):
+        build_velocity_source(
+            ("\n".join(lines) + "\n").encode(),
+            "bad.src",
+            VelocityRequest(extrusion_mps=0.04, travel_mps=0.1),
+        )

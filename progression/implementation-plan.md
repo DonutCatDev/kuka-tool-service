@@ -2,10 +2,12 @@
 
 Status: implementation in progress
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-27
 
 Current local validation evidence:
 [`../validation/2026-10-26-browser-slice-local.md`](../validation/2026-10-26-browser-slice-local.md)
+and
+[`../validation/2026-10-27-velocity-modification-local.md`](../validation/2026-10-27-velocity-modification-local.md)
 
 ## Goal
 
@@ -135,6 +137,11 @@ Each operation requires a separate parameter contract, validation report,
 golden corpus, operator confirmation flow, and rollout decision. Path generation
 or transformation must not inherit controller write authority.
 
+Velocity modification is now implemented as the first advanced transformation.
+It uses strict alternating marker classification, preserves setup velocities,
+and fails closed on ambiguous marker sequences. Deployment and operator review
+remain separate acceptance stages.
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.
@@ -142,9 +149,11 @@ or transformation must not inherit controller write authority.
 - [x] Add planning and reference-assessment records.
 - [x] Add ignore rules for secrets, runtime state, uploads, artifacts, and caches.
 - [ ] Select and sanitize the golden fixture corpus.
+- [x] Add a synthetic golden fixture for velocity replacement.
 - [x] Define the initial package and route contracts.
 - [x] Implement Phase 1 inspection and time estimation.
 - [x] Implement the first metadata-annotation browser workflow.
 - [x] Add initial container and Compose definitions.
+- [x] Implement marker-aware velocity modification.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

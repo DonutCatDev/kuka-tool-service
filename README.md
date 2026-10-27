@@ -14,7 +14,7 @@ The first browser slice provides:
 
 1. SRC inspection and idealized path-time estimation.
 2. Metadata annotation and controlled output naming.
-3. Velocity analysis without automatic modification.
+3. Marker-aware velocity analysis and controlled modification.
 
 Path merging, XYZ adjustment, probing-path generation, mesh-based speed
 compensation, and browser-based mesh editing are later phases gated by golden
@@ -33,6 +33,7 @@ The first browser-service slice provides:
 - motion, velocity, marker, layer, wipe, bounds, and hash reporting;
 - idealized LIN-path runtime estimation;
 - operator-only metadata annotation and renamed artifact download;
+- operator-only extrusion and return-travel velocity replacement;
 - source/output SHA-256 provenance and SQLite audit records;
 - encoding and newline preservation for generated artifacts;
 - a container and local Compose definition.
