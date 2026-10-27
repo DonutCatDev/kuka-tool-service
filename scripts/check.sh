@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 python_bin=${PYTHON:-"$repo_dir/.venv/bin/python"}
+ansible_bin=${ANSIBLE_PLAYBOOK:-"$repo_dir/.venv/bin/ansible-playbook"}
 
 if [[ ! -x "$python_bin" ]]; then
     echo "Python interpreter not found: $python_bin" >&2
@@ -20,9 +21,13 @@ else
     echo "Docker unavailable; Compose validation skipped."
 fi
 
-if command -v ansible-playbook >/dev/null 2>&1; then
-    ansible-playbook --syntax-check -i 'fleetlord,' ansible/preflight.yml
-    ansible-playbook --syntax-check -i 'fleetlord,' ansible/deploy.yml
+if [[ -x "$ansible_bin" ]]; then
+    ANSIBLE_LOCAL_TEMP="$repo_dir/validation/tmp/ansible-local" \
+        ANSIBLE_REMOTE_TEMP=/tmp/kuka-tool-ansible-remote \
+        "$ansible_bin" --syntax-check -i ../inventory/hosts.yml ansible/preflight.yml
+    ANSIBLE_LOCAL_TEMP="$repo_dir/validation/tmp/ansible-local" \
+        ANSIBLE_REMOTE_TEMP=/tmp/kuka-tool-ansible-remote \
+        "$ansible_bin" --syntax-check -i ../inventory/hosts.yml ansible/deploy.yml
 else
     echo "Ansible unavailable; deployment playbook syntax validation skipped."
 fi

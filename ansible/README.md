@@ -50,3 +50,7 @@ during pilot acceptance.
 Running either playbook is a deployment action and remains outside source-only
 development tasks. Prefer Semaphore; direct SSH plus interactive `sudo` is only
 the documented fallback when Semaphore cannot perform the scoped operation.
+
+For local syntax validation without contacting Fleetlord, install the pinned
+`deployment` optional dependency and run `scripts/check.sh`. The check uses the
+Fleet Control inventory only for parsing and does not execute either playbook.

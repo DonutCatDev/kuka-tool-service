@@ -238,7 +238,8 @@ recorded in
 - [x] Add guarded Fleetlord preflight and deployment automation.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.
 
-The automation is source-reviewed and covered by static safety-contract tests,
-but Ansible syntax execution, Docker/Compose validation, Semaphore preflight,
-and deployment remain pending. Local evidence is recorded in
+The automation is source-reviewed, covered by static safety-contract tests, and
+passes Ansible Core 2.19 syntax checks against the Fleet Control inventory.
+Docker/Compose validation, Semaphore preflight, and deployment remain pending.
+Local source evidence is recorded in
 [the deployment automation validation report](../validation/2026-10-27-deployment-automation-local.md).

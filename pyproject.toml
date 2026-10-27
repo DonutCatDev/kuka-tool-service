@@ -17,6 +17,9 @@ dependencies = [
 dev = [
     "pytest==9.0.2",
 ]
+deployment = [
+    "ansible-core==2.19.14",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

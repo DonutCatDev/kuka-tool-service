@@ -55,6 +55,13 @@ python3 -m venv .venv
 PYTHON=.venv/bin/python scripts/check.sh
 ```
 
+To include deployment-playbook syntax validation:
+
+```bash
+.venv/bin/python -m pip install -e '.[dev,deployment]'
+PYTHON=.venv/bin/python scripts/check.sh
+```
+
 The application requires a users JSON file using the existing Production Desk
 secret schema. Point `KUKA_TOOL_USERS_PATH` at a local non-committed fixture and
 set `KUKA_TOOL_REQUIRE_HTTPS=false` only for local development.
