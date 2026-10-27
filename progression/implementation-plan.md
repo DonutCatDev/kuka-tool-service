@@ -14,6 +14,8 @@ and
 [`../validation/2026-10-27-path-merge-local.md`](../validation/2026-10-27-path-merge-local.md)
 and
 [`../validation/2026-10-27-probe-grid-local.md`](../validation/2026-10-27-probe-grid-local.md)
+and
+[`../validation/2026-10-27-mesh-parser-local.md`](../validation/2026-10-27-mesh-parser-local.md)
 
 ## Goal
 
@@ -164,6 +166,11 @@ It uses extrusion bounds and source orientation fields but deliberately omits
 uploaded process-control scaffolding. Controller integration and physical path
 validation remain separate engineering work.
 
+Strict mesh CSV inspection and dependency-free bilinear lookup are implemented
+as the parsing foundation for mesh-based speed compensation. Missing cells are
+reported rather than silently replaced. SRC speed rewriting remains gated on a
+separate transformation contract and golden corpus.
+
 ## Initial repository work
 
 - [x] Create the independent nested repository.
@@ -175,6 +182,7 @@ validation remain separate engineering work.
 - [x] Add a synthetic golden fixture for XYZ adjustment.
 - [x] Add synthetic golden fixtures for alternating path merge.
 - [x] Add synthetic golden fixtures for probe-grid generation.
+- [x] Add strict mesh CSV parsing and inspection fixtures.
 - [x] Define the initial package and route contracts.
 - [x] Implement Phase 1 inspection and time estimation.
 - [x] Implement the first metadata-annotation browser workflow.
@@ -183,5 +191,6 @@ validation remain separate engineering work.
 - [x] Implement marker-aware extrusion XYZ adjustment.
 - [x] Implement strict alternating path merge.
 - [x] Implement bounded review-only probe-grid generation.
+- [x] Implement the mesh parsing/interpolation foundation.
 - [ ] Add Fleet Control deployment automation after local acceptance.
 - [ ] Perform a separately authorized Fleetlord pilot deployment.

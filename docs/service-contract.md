@@ -137,9 +137,28 @@ logic. Its header states these omissions. It must not be treated as a
 controller-ready probing routine without independent engineering integration
 and physical validation.
 
+## Mesh CSV inspection
+
+Mesh files use the historical matrix convention: the top-left field is empty,
+the remaining first-row fields are Y coordinates, each later row begins with an
+X coordinate, and the remaining cells are measured Z heights. The parser uses
+the standard CSV grammar and requires rectangular rows, finite numeric values,
+and strictly increasing unique X and Y axes.
+
+Uploads are limited to 8 MiB, 2,000 values per axis, and 1,000,000 cells. Blank
+height cells remain explicitly missing and are reported; a fully empty probing
+template is rejected as not yet being a measurement mesh. Bilinear lookup uses
+four measured corners and otherwise returns a caller-supplied baseline,
+including outside the grid. It never silently rewrites missing cells.
+
+The reusable speed calculation follows the historical zone convention while
+requiring explicit bounded parameters. This release exposes mesh inspection in
+the browser but does not yet generate a mesh-compensated SRC program.
+
 ## Authorization
 
 - `viewer`, `operator`, and `admin` may inspect files.
+- `viewer`, `operator`, and `admin` may inspect mesh CSV files.
 - `operator` and `admin` may generate annotated artifacts.
 - `operator` and `admin` may generate velocity-modified artifacts.
 - `operator` and `admin` may generate XYZ-adjusted artifacts.

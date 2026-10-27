@@ -33,6 +33,7 @@ from werkzeug.utils import secure_filename
 
 from .parser import MAX_SOURCE_BYTES, SourceValidationError, inspect_source
 from .merger import build_merged_source
+from .mesh import MAX_MESH_BYTES, parse_mesh_csv
 from .probe_generator import ProbeRequest, build_probe_source
 from .transforms import (
     MetadataRequest,
@@ -166,6 +167,22 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             result="completed",
         )
         return render_template("inspection.html", report=report)
+
+    @app.post("/inspect-mesh")
+    @require_role("viewer")
+    def inspect_mesh_upload() -> str:
+        _require_csrf()
+        filename, data = _uploaded_file("mesh_file", ".csv", MAX_MESH_BYTES, "mesh CSV")
+        mesh = parse_mesh_csv(data)
+        _record_audit(
+            app,
+            operation="inspect_mesh",
+            input_sha256=mesh.sha256,
+            output_sha256=None,
+            parameters={"filename": filename},
+            result="completed",
+        )
+        return render_template("mesh_inspection.html", filename=filename, mesh=mesh)
 
     @app.post("/annotate")
     @require_role("operator")
@@ -482,15 +499,23 @@ def _require_csrf() -> None:
 
 
 def _uploaded_src(field_name: str = "src_file") -> tuple[str, bytes]:
+    return _uploaded_file(field_name, ".src", MAX_SOURCE_BYTES, "SRC file")
+
+
+def _uploaded_file(
+    field_name: str, suffix: str, byte_limit: int, label: str
+) -> tuple[str, bytes]:
     upload = request.files.get(field_name)
     if upload is None or not upload.filename:
-        raise SourceValidationError("Select a KUKA .src file.")
+        raise SourceValidationError(f"Select a {label}.")
     filename = secure_filename(upload.filename)
-    if not filename or Path(filename).suffix.lower() != ".src":
-        raise SourceValidationError("Only .src files are accepted.")
-    data = upload.stream.read(MAX_SOURCE_BYTES + 1)
-    if len(data) > MAX_SOURCE_BYTES:
-        raise SourceValidationError("The uploaded SRC file exceeds the 32 MiB limit.")
+    if not filename or Path(filename).suffix.lower() != suffix:
+        raise SourceValidationError(f"Only {suffix} files are accepted for {label}.")
+    data = upload.stream.read(byte_limit + 1)
+    if len(data) > byte_limit:
+        raise SourceValidationError(
+            f"The uploaded {label} exceeds the {byte_limit // (1024 * 1024)} MiB limit."
+        )
     return filename, data
 
 

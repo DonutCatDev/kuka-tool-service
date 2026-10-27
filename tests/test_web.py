@@ -10,6 +10,7 @@ from conftest import csrf_token, login, sample_src
 
 
 MERGE_FIXTURES = Path(__file__).parent / "fixtures" / "merge"
+MESH_FIXTURE = Path(__file__).parent / "fixtures" / "mesh" / "valid.csv"
 
 
 def test_health_reports_no_controller_access(client) -> None:
@@ -50,6 +51,27 @@ def test_inspection_browser_flow_records_audit(client, app) -> None:
             "SELECT username, operation, output_sha256 FROM audit_events"
         ).fetchone()
     assert row == ("operator", "inspect", None)
+
+
+def test_mesh_inspection_reports_missing_cells_and_audits(client, app) -> None:
+    login(client)
+    response = client.post(
+        "/inspect-mesh",
+        data={
+            "csrf_token": csrf_token(client),
+            "mesh_file": (BytesIO(MESH_FIXTURE.read_bytes()), "mesh.csv"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Mesh inspection: mesh.csv" in response.data
+    assert b"Missing cells</dt><dd>1" in response.data
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as connection:
+        row = connection.execute(
+            "SELECT operation, output_sha256 FROM audit_events"
+        ).fetchone()
+    assert row == ("inspect_mesh", None)
 
 
 def test_annotation_download_has_hash_provenance(client) -> None:

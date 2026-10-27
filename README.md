@@ -37,6 +37,7 @@ The first browser-service slice provides:
 - operator-only XYZ offsets for marker-classified extrusion LIN motions;
 - operator-only alternating merge of structurally compatible path programs;
 - operator-only generation of bounded, review-only probing grids;
+- authenticated inspection and strict validation of mesh CSV grids;
 - source/output SHA-256 provenance and SQLite audit records;
 - encoding and newline preservation for generated artifacts;
 - a container and local Compose definition.

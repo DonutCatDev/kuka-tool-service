@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Mesh inspection: {{ filename }}</h1>
+<p class="boundary">Inspection does not approve this mesh for speed compensation or robot use.</p>
+<dl>
+  <dt>SHA-256</dt><dd><code>{{ mesh.sha256 }}</code></dd>
+  <dt>Encoding</dt><dd>{{ mesh.encoding }}</dd>
+  <dt>Grid dimensions</dt><dd>{{ mesh.x_values|length }} X rows × {{ mesh.y_values|length }} Y columns</dd>
+  <dt>X bounds</dt><dd>{{ '%.3f'|format(mesh.x_values[0]) }} to {{ '%.3f'|format(mesh.x_values[-1]) }} mm</dd>
+  <dt>Y bounds</dt><dd>{{ '%.3f'|format(mesh.y_values[0]) }} to {{ '%.3f'|format(mesh.y_values[-1]) }} mm</dd>
+  <dt>Measured cells</dt><dd>{{ mesh.measured_count }}</dd>
+  <dt>Missing cells</dt><dd>{{ mesh.missing_count }}</dd>
+  <dt>Height range</dt><dd>{{ '%.6f'|format(mesh.minimum_height) }} to {{ '%.6f'|format(mesh.maximum_height) }} mm</dd>
+  <dt>Average height</dt><dd>{{ '%.6f'|format(mesh.average_height) }} mm</dd>
+</dl>
+<p><a href="{{ url_for('index') }}">Return to tools</a></p>
+{% endblock %}

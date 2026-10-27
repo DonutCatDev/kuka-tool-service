@@ -16,6 +16,16 @@
   </section>
 
   <section class="panel">
+    <h2>Inspect mesh CSV</h2>
+    <p>Validate axes, dimensions, measured heights, and missing cells before using a mesh for speed compensation.</p>
+    <form method="post" action="{{ url_for('inspect_mesh_upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Mesh CSV<input type="file" name="mesh_file" accept=".csv,text/csv" required></label>
+      <button type="submit">Inspect mesh</button>
+    </form>
+  </section>
+
+  <section class="panel">
     <h2>Generate probe grid</h2>
     <p>Derive an XY grid from extrusion bounds and generate a review-only probing program without copying source process-control logic.</p>
     {% if current_role in ('operator', 'admin') %}
