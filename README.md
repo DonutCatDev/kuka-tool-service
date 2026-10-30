@@ -72,7 +72,7 @@ review expectations, retention behavior, and the deployment acceptance checklist
 ## Deployment status
 
 The pilot is deployed on Fleetlord at revision `d84bde1` and is available at
-`https://fleetlord.local:4743`. Deployment health, authentication configuration,
+`https://fleetlord.local:6000`. Deployment health, authentication configuration,
 HTTP fail-closed behavior, HTTPS login, CSRF form presence, and security headers
 have passed. Authenticated operator workflows and robot-side acceptance remain
 pending. Guarded Semaphore automation is under [`ansible/`](ansible/). A GET-only

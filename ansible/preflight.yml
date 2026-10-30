@@ -57,7 +57,7 @@
 
     - name: Inspect reserved listener ports
       ansible.builtin.command:
-        argv: [ss, -H, -ltn, "sport = :4700 or sport = :4743"]
+        argv: [ss, -H, -ltn, "sport = :6000 or sport = :6001"]
       changed_when: false
       register: kuka_tool_reserved_ports
       when: not kuka_tool_existing_compose.stat.exists
@@ -82,7 +82,7 @@
           - kuka_tool_reserved_ports.stdout | trim == ''
           - "'172.30.0.23' not in kuka_tool_occupied_addresses"
         fail_msg: >-
-          Refusing first deployment because port 4700/4743 or
+          Refusing first deployment because port 6000/6001 or
           fleet-services address 172.30.0.23 is already occupied.
       when: not kuka_tool_existing_compose.stat.exists
 

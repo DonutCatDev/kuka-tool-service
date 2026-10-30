@@ -1,4 +1,4 @@
-https://fleetlord.local:4743 {
+https://fleetlord.local:6000 {
     tls internal
     encode zstd gzip
     reverse_proxy kuka-tool-service:4700

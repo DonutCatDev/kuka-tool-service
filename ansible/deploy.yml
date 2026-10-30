@@ -58,7 +58,7 @@
 
     - name: Inspect reserved listener ports
       ansible.builtin.command:
-        argv: [ss, -H, -ltn, "sport = :4700 or sport = :4743"]
+        argv: [ss, -H, -ltn, "sport = :6000 or sport = :6001"]
       changed_when: false
       register: kuka_tool_reserved_ports
       when: not kuka_tool_existing_compose.stat.exists
@@ -83,7 +83,7 @@
           - kuka_tool_reserved_ports.stdout | trim == ''
           - "'172.30.0.23' not in kuka_tool_occupied_addresses"
         fail_msg: >-
-          Refusing first deployment because port 4700/4743 or
+          Refusing first deployment because port 6000/6001 or
           fleet-services address 172.30.0.23 is already occupied.
       when: not kuka_tool_existing_compose.stat.exists
 
@@ -167,7 +167,7 @@
 
     - name: Wait for authenticated service health
       ansible.builtin.uri:
-        url: http://127.0.0.1:4700/healthz
+        url: http://127.0.0.1:6001/healthz
         return_content: true
         status_code: 200
       register: kuka_tool_health
@@ -180,13 +180,13 @@
 
     - name: Verify direct HTTP access fails closed outside health
       ansible.builtin.uri:
-        url: http://127.0.0.1:4700/login
+        url: http://127.0.0.1:6001/login
         return_content: true
         status_code: 426
 
     - name: Verify the HTTPS login boundary
       ansible.builtin.uri:
-        url: https://fleetlord.local:4743/login
+        url: https://fleetlord.local:6000/login
         return_content: true
         status_code: 200
         validate_certs: false
@@ -196,6 +196,6 @@
         msg:
           release_revision: "{{ kuka_tool_release_revision }}"
           health: "{{ kuka_tool_health.json }}"
-          public_url: https://fleetlord.local:4743
+          public_url: https://fleetlord.local:6000
           controller_access: false
           robot_acceptance_complete: false

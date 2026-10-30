@@ -286,8 +286,9 @@ The service consumes the existing Production Desk users secret format but does
 not contain or generate credential values.
 
 The initial Compose definition exposes the application health endpoint on port
-4700 and authenticated browser traffic through a Caddy internal-TLS endpoint on
-port 4743. Its Caddy data directory is service-specific, so its public root
+container port 4700, loopback-only host diagnostics on port 6001, and
+authenticated browser traffic through a Caddy internal-TLS endpoint on port
+6000. Its Caddy data directory is service-specific, so its public root
 certificate must be reviewed and trusted on approved clients before pilot use.
 Consolidating this route behind a shared Fleetlord TLS gateway remains a
 deployment-phase option.

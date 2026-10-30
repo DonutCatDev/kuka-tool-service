@@ -5,12 +5,12 @@ services:
     container_name: kuka-tool-service
     restart: unless-stopped
     ports:
-      - "4700:4700"
+      - "127.0.0.1:6001:4700"
     environment:
       KUKA_TOOL_USERS_PATH: /run/secrets/production_desk_users
       KUKA_TOOL_DATABASE_PATH: /data/kuka-tool-service.sqlite3
       KUKA_TOOL_REQUIRE_HTTPS: "true"
-      KUKA_TOOL_PUBLIC_HTTPS_URL: https://fleetlord.local:4743
+      KUKA_TOOL_PUBLIC_HTTPS_URL: https://fleetlord.local:6000
       KUKA_TOOL_AUDIT_RETENTION_DAYS: "365"
       KUKA_TOOL_AUDIT_MAX_ROWS: "100000"
     secrets:
@@ -35,7 +35,7 @@ services:
       kuka-tool-service:
         condition: service_healthy
     ports:
-      - "4743:4743"
+      - "6000:6000"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /srv/sv08/appdata/kuka-tool-service/caddy-data:/data

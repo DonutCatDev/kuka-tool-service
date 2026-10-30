@@ -26,7 +26,7 @@ def test_preflight_contains_no_mutating_deployment_tasks() -> None:
 
 def test_playbooks_guard_reserved_ports_and_service_address() -> None:
     for playbook in (PREFLIGHT, DEPLOY):
-        assert "sport = :4700 or sport = :4743" in playbook
+        assert "sport = :6000 or sport = :6001" in playbook
         assert "172.30.0.23" in playbook
         assert "kuka_tool_occupied_addresses" in playbook
         assert "when: not kuka_tool_existing_compose.stat.exists" in playbook
@@ -42,9 +42,9 @@ def test_deployment_requires_approval_revision_and_protected_secret() -> None:
 
 
 def test_deployment_verifies_health_https_and_http_fail_closed() -> None:
-    assert "http://127.0.0.1:4700/healthz" in DEPLOY
+    assert "http://127.0.0.1:6001/healthz" in DEPLOY
     assert "not kuka_tool_health.json.controller_access" in DEPLOY
-    assert "http://127.0.0.1:4700/login" in DEPLOY
+    assert "http://127.0.0.1:6001/login" in DEPLOY
     assert "status_code: 426" in DEPLOY
-    assert "https://fleetlord.local:4743/login" in DEPLOY
+    assert "https://fleetlord.local:6000/login" in DEPLOY
     assert "robot_acceptance_complete: false" in DEPLOY

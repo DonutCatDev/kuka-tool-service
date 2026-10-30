@@ -80,7 +80,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         AUDIT_MAX_ROWS=os.getenv("KUKA_TOOL_AUDIT_MAX_ROWS", "100000"),
         REQUIRE_HTTPS=os.getenv("KUKA_TOOL_REQUIRE_HTTPS", "true").lower() == "true",
         PUBLIC_HTTPS_URL=os.getenv(
-            "KUKA_TOOL_PUBLIC_HTTPS_URL", "https://fleetlord.local:4743"
+            "KUKA_TOOL_PUBLIC_HTTPS_URL", "https://fleetlord.local:6000"
         ),
     )
     if test_config:

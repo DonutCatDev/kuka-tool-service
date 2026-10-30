@@ -95,7 +95,7 @@ requires an explicit approval variable and the exact reviewed commit revision.
 
 ## Current pilot state
 
-Revision `d84bde1` is deployed at `https://fleetlord.local:4743`. Automated and
+The service is prepared for deployment at `https://fleetlord.local:6000`. Automated and
 independent checks passed for service health, configured authentication, absence
 of controller access, direct-HTTP rejection, HTTPS login, the login CSRF field,
 and proxy security headers. Before general operator use, complete authenticated
