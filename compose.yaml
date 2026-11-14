@@ -48,6 +48,7 @@ services:
       start_period: 10s
     networks:
       fleet-services:
+        ipv4_address: 172.30.0.6
 
 networks:
   fleet-services:
